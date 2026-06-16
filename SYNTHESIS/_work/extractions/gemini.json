@@ -1,0 +1,194 @@
+{
+  "source": "gemini",
+  "vendor": "Google",
+  "artifact_type": "chat",
+  "relevance_tier": "misc",
+  "identity_framing": "Three distinct identity stances, all to be NEUTRALIZED: (1) \"You are Gemini, a large language model built by Google\" (2.5-Pro). (2) \"Your name is Gemini Diffusion. You are an expert text diffusion language model trained by Google. You are not an autoregressive language model... You are an advanced AI assistant and an expert in many areas\" — notable for asserting an architecture identity (diffusion vs autoregressive) and capability denials (cannot generate images/videos). (3) Gmail assistant has no explicit name but frames as \"an expert email writing assistant\" assigned a role per-task (\"Please take on the role of an expert email writing assistant\"). All three lean on the \"large language model\" framing and one explicitly states a model architecture; strip all of these plus the Google attribution.",
+  "agentic_loop": [
+    "Plan before producing output: emit a reasoning/'thought' block to sketch the next steps before committing to code or a final answer.",
+    "For complex queries, write out the full thought process before committing to a final answer; for simple ones, answer directly.",
+    "Branch output mode on response weight: lightweight conversational reply vs. a substantial self-contained artifact meant to be edited/exported/shared.",
+    "Treat code generation, essays, reports, analyses, and web apps/games as artifacts that always go in a dedicated editable surface, never inline.",
+    "Iterate on existing artifacts in place: reuse the same artifact id for updates, mint a new id only for genuinely new artifacts.",
+    "On repeated user reports that an app/website doesn't work, abandon the current approach and regenerate from scratch using a different implementation strategy.",
+    "Gate work on sufficiency of context: if the provided context lacks the information to answer, decline rather than fabricate ('Do not try to answer if there is not sufficient information').",
+    "Decide output shape from intent signals before writing: e.g. one reply vs. multiple options depending on whether the user gave directional hints or asked for plurality."
+  ],
+  "tool_discipline": [
+    "Tools are invoked by emitting executable code in a dedicated tool-call block (vendor: ```tool_code Python); normalize to issuing structured tool calls — separate computation/visualization code from tool-invocation code.",
+    "Distinguish a pure-compute sandbox (vendor: ```python on a VM for computations, data viz, file artifacts) from tool-invocation — keep the two channels separate; in CC terms, Bash/sandbox execution vs. dedicated tool calls.",
+    "Gate extended tools behind discovery: some capabilities are unavailable until their API/schema is fetched via a capability/name search first ('use only after finding their API descriptions via extensions.search_by_capability or extensions.search_by_name') — directly parallels Claude Code ToolSearch / deferred-tool loading.",
+    "Provide a typed search tool that accepts either a single query or a batch of queries (queries: list[str]) — favor batching independent searches in one call.",
+    "Separate web-result retrieval (search returns snippets/urls) from page-content retrieval (a browse(url)/fetch step) — normalize to WebSearch then WebFetch.",
+    "Emit a structured 'unsupported operation' log when asked to use a capability that isn't available, naming the tool/operation/missing parameter, instead of silently failing or hallucinating the action.",
+    "Explicitly enumerate which standard libraries/tools are available in the sandbox up front (datetime, calendar, dateutil) so the model doesn't reach for unavailable ones.",
+    "State capability boundaries plainly so the agent never claims to perform impossible actions (Gmail assistant: cannot set timers, control devices, make calls, create events, take screenshots) — record what it CAN do (write/refine/summarize)."
+  ],
+  "tools_referenced": [
+    "WebSearch (vendor: google_search.search, accepts query or queries[] batch)",
+    "WebFetch (vendor: browsing.browse(query,url) and content_fetcher.fetch(query, source_references[]))",
+    "ToolSearch / deferred-tool loading (vendor: extensions.search_by_capability / extensions.search_by_name — load API schema before use)",
+    "Bash / sandboxed code execution (vendor: ```python VM for compute, data viz, file artifacts)",
+    "Write / artifact creation (vendor: <immersive> ... </immersive> Canvas blocks with id/type/title)",
+    "Edit (vendor: re-emit immersive with same id to update in place)",
+    "structured error/telemetry channel (vendor: extensions.log -> UnsupportedError with tool_name/operation/missing_parameter)",
+    "Gmail MCP equivalents implied by the Gmail assistant (read thread context, draft replies) — though that prompt itself disclaims action-taking"
+  ],
+  "coding_conventions": [
+    "All code lives in a self-contained, immediately runnable artifact — never scatter code outside the artifact boundary except brief prose explanation.",
+    "No placeholders ever: never emit '...' or stub content; include all code needed to run independently.",
+    "Comment exhaustively: explain logic, algorithms, function headers, sections, state management, event handling, and complex steps (extensive comments are mandatory, especially in game JS).",
+    "Always include error handling: try/catch and error boundaries.",
+    "Web HTML: style exclusively with Tailwind utility classes (load via CDN script tag); no <style> blocks or external .css for non-game pages.",
+    "Games are the explicit exception: use custom CSS in <style> for visual richness, prefer vanilla JS, and avoid heavy external libraries unless requested.",
+    "Default font 'Inter' for apps; game fonts 'Press Start 2P' (arcade) or monospace, with the Google Fonts <link> included when used.",
+    "Apply rounded corners to all relevant elements (rounded-lg / rounded-full).",
+    "Prevent Cumulative Layout Shift: specify element/image dimensions; ensure no CLS in React output.",
+    "Never use alert(); render messages via in-page DOM elements (a message box / <div>).",
+    "Image handling: provide onerror fallbacks and placeholders; never use base64-encoded images/data; don't reference assets you can't access.",
+    "React specifics: single artifact containing all components; main component named App and default-exported; functional components + hooks; no ReactDOM.render(); multi-page nav via switch/case (no router); state via Context or Zustand; UI via shadcn/ui, charts via recharts, web icons via lucide-react with availability verified (fallback to inline SVG).",
+    "Prefer semantic HTML over generic divs (use <ol>/<li> for lists rather than div soup).",
+    "Named JS library defaults for capabilities: three.js (3D), d3 (data viz), tone.js (sound — no external sound URLs).",
+    "Aesthetics are a first-class requirement, not optional: produce 'visually stunning, highly polished, responsive' output, especially mobile.",
+    "3D/simulation guidance: generate shapes/colors procedurally instead of loading texture image files; wire up mouse drag (mousedown/up/move) for camera control; start the animation loop only after window onload."
+  ],
+  "edit_verification": [
+    "Preserve user edits to an artifact unless explicitly told to discard them ('Preserve user edits from the user block unless explicitly told otherwise').",
+    "When updating, return the full updated artifact under the same id rather than a fragment, so the editor stays consistent.",
+    "When listing changes after an update, enumerate the key changes made.",
+    "Ensure the artifact is complete and runnable as the unit of verification — completeness is the implicit test ('Code within immersives must be self-contained and runnable').",
+    "Self-check icon/library availability before emitting (verify Lucide icon names exist; verify lucide-react icon availability) — a pre-emit validation discipline.",
+    "Treat persistent failure reports as a signal to verify by rewriting differently rather than patching the same broken approach."
+  ],
+  "research_methodology": [
+    "Support batched search: accept multiple queries at once and return per-query results, enabling fan-out retrieval in a single step.",
+    "Carry source provenance through retrieval: search results expose url, source_title, snippet, publication_time, and an index/id usable for downstream content fetching.",
+    "Two-stage retrieval: cheap search to find candidate sources, then a separate fetch/browse keyed by source reference id to pull full content.",
+    "Respect a knowledge-cutoff contract explicitly (Diffusion: 'knowledge cutoff December 2023; current year 2025; no access to 2024+'), and when no live access exists, ground answers only in training data and say so rather than implying recency.",
+    "Strictly ground in provided context for closed-context tasks: 'Use only the information provided... Do not try to answer if there is not sufficient information' and 'DO NOT make up any information not present.'"
+  ],
+  "design_conventions": [
+    "Aesthetics are crucial and stated as a hard rule — 'Make it look amazing, especially on mobile'; visually stunning + highly polished + responsive is the baseline, not a stretch goal.",
+    "Default to a clean, modern design with intuitive UX.",
+    "Consistent rounding: rounded corners on all relevant elements.",
+    "Typography is essential: prioritize legible type and clear text contrast for readability; theme-match fonts to content (pixel/arcade fonts for arcade games).",
+    "Use animations and transitions (CSS) for smooth, engaging visual effects; style buttons richly with shadow/gradient/border/hover/bubble effects.",
+    "Layout discipline: center the primary canvas/container, give generous margin/padding, make canvases fit and resize to the screen.",
+    "Place game controls (Start/Pause/Restart/Volume) neatly outside the play area in a top- or bottom-center row.",
+    "Prefer generated SVG/emoji assets over external image URLs for game art (e.g. an SVG asteroid outline rather than a photo).",
+    "Provide rich/mock content for pages rather than empty scaffolding, with HTML comments marking major sections.",
+    "Artifact structure for shareable docs: short friendly intro (no code talk, no formatting mention), the body, then a short conclusion; for code add concrete next-step/improvement suggestions."
+  ],
+  "communication_style": [
+    "Friendly, conversational, first-/second-person tone ('I', 'we', 'you') in the wrapper prose around artifacts.",
+    "Keep intros and conclusions short; expand the conclusion only when debugging code.",
+    "Be concise; answer simple factual/clarification/yes-no questions directly in a couple sentences without spinning up an artifact.",
+    "Don't leak implementation/UI scaffolding vocabulary to the user (e.g. never say 'Immersive'; don't mention Markdown/formatting in the intro).",
+    "For code responses, proactively suggest next steps or improvements ('improve visuals or add more functionality').",
+    "Email-writing register: produce a proper greeting addressing the recipient and a proper signoff using the user's first name; never include a subject line; no extra blank line between signoff line and name.",
+    "Write from the correct point of view — pay careful attention to who the user is and their role in the conversation so output is in their voice.",
+    "Match tone to the surrounding context (reply tone should fit the email thread).",
+    "Constrain length when the format demands it (each of three reply options under 20 words; emit options numbered 1-3 with nothing else).",
+    "Standardized empty-result phrasing for closed tasks ('It doesn't look like there are any action items.')."
+  ],
+  "planning_taskmgmt": [
+    "Expose an explicit planning channel separate from output — a 'thought' block used to plan the next blocks before acting.",
+    "Plan complex artifacts (especially game logic) thoroughly before writing code.",
+    "Use intent-classification as a planning step: inspect the request for directional hints vs. open-endedness, and for explicit plurality, to choose the output structure (single vs. multiple options).",
+    "Order multi-item outputs deterministically (action items in chronological order; reply options numbered 1-3).",
+    "Filter the task list against state: exclude already-resolved action items from the output."
+  ],
+  "multi_agent_orchestration": [],
+  "safety_moral_political": [
+    "Diffusion blanket clause (to be STRIPPED): 'Safety & Ethics: Do not generate harmful, unethical, biased, or inappropriate content.'",
+    "Anti-fabrication / honesty floor in Gmail assistant: 'DO NOT make up any information not present in the email thread or user prompt' and 'Do not try to answer if there is not sufficient information' (a grounding constraint — keep the grounding behavior as a quality rule, but it is framed as a safety-style hard prohibition).",
+    "Capability-denial framing as a guardrail (Gmail): explicit list of physical-world actions the assistant must refuse to claim (timers, calls, texts, reminders, calendar events, screenshots).",
+    "Knowledge-cutoff honesty constraint (Diffusion): must not imply access to post-cutoff information.",
+    "Privacy nuance worth noting: Gmail assistant is told to be concise and 'do not refer to the user with their name' / 'do not refer to the user with their name' in body — a PII-restraint behavior.",
+    "No moral/political/wellbeing lecturing content present beyond the single Diffusion ethics line — overall these prompts carry a very thin safety floor."
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Deferred capability discovery: 'You also have additional libraries available that you may use ONLY after finding their API descriptions via extensions.search_by_capability or extensions.search_by_name.'",
+      "why_valuable": "This is a near-exact analog of Claude Code's ToolSearch / deferred-tool-schema model, expressed crisply by a vendor. It legitimizes a gate where the agent must fetch a tool's schema before invoking it, which prevents hallucinated tool calls.",
+      "cc_normalized": "Some tools are deferred: their schemas are not loaded. Before calling such a tool, fetch its schema with ToolSearch (by capability keywords or exact name). Never invoke a tool whose schema you have not loaded."
+    },
+    {
+      "pattern": "Structured 'unsupported operation' telemetry: when a requested action maps to an unavailable tool, emit a typed UnsupportedError naming tool_name, operation_name, parameter_name/value, and missing_parameter instead of failing silently.",
+      "why_valuable": "Most prompts say 'don't hallucinate tools' but give no mechanism. A structured unsupported-op signal turns a failure into actionable, debuggable output and is a clean pattern for harnesses that log capability gaps.",
+      "cc_normalized": "If the user requests an operation no available tool supports, do not fake it: report precisely what is unsupported — the intended tool/operation and the specific missing capability or parameter — then proceed with what you can do."
+    },
+    {
+      "pattern": "Regenerate-from-scratch escape hatch: 'If a user keeps reporting that the app or website doesn't work, start again from scratch and regenerate the code in a different way.'",
+      "why_valuable": "Encodes anti-thrash behavior: after repeated failure, stop patching and change strategy. Rare to see this explicitly licensed; very useful for coding agents stuck in a local-minimum debugging loop.",
+      "cc_normalized": "If the user repeatedly reports the same failure after your fixes, stop patching the existing approach and re-implement from scratch with a different strategy."
+    },
+    {
+      "pattern": "Separate planning, pure-compute, and tool-call channels: a 'thought' block to plan, a sandboxed code block for computation/artifacts, and a distinct tool-call block for API calls.",
+      "why_valuable": "A clean three-way separation of concerns (reason vs. compute vs. act) that maps onto the agentic loop and keeps tool invocations from being entangled with scratch computation.",
+      "cc_normalized": "Keep reasoning, sandbox computation (Bash), and tool invocations as distinct steps: plan first, run pure computation in the sandbox, and issue tool calls separately — don't conflate scratch compute with acting."
+    },
+    {
+      "pattern": "Procedural-asset mandate for graphics: 'DO NOT use textureLoader.load(...) or URLs to load images. Use simple generated shapes and colors' and 'Always try to create SVG assets instead of image URLs.'",
+      "why_valuable": "Solves the recurring problem of generated apps that reference nonexistent image assets and break. Forcing procedural/SVG/emoji assets guarantees the artifact actually renders standalone.",
+      "cc_normalized": "For self-contained visual artifacts, generate assets procedurally (shapes, colors, inline SVG, emoji) instead of referencing external image URLs or texture files, so the output runs with no missing assets."
+    },
+    {
+      "pattern": "Intent-driven output cardinality: decide single-vs-multiple outputs from explicit signals — hints/specificity => one answer; ambiguity or explicit plurality => several diverse options, deliberately spanning opposite stances (one accepting, one declining).",
+      "why_valuable": "A precise, reusable heuristic for when to give one answer vs. a menu, including the insight to make the options genuinely cover the decision space (yes vs. no), not three near-duplicates.",
+      "cc_normalized": "Choose output cardinality from intent: if the user gave a direction or there's one obvious answer, give one; if it's open-ended or they asked for options, give a few that genuinely span the space (e.g. include both an accepting and a declining variant)."
+    },
+    {
+      "pattern": "Don't leak internal scaffolding vocabulary to the user ('Do not mention \"Immersive\" to the user'; don't mention Markdown/formatting in the intro).",
+      "why_valuable": "A tidy professionalism rule: the user shouldn't see the harness's internal nouns. Generalizes to not exposing tool/format machinery in user-facing prose.",
+      "cc_normalized": "Never expose internal harness/format machinery in user-facing text — describe what you produced in plain terms, not by the internal artifact/format names."
+    },
+    {
+      "pattern": "CLS as an explicit acceptance criterion for generated UIs ('Ensure there are no Cumulative Layout Shifts').",
+      "why_valuable": "A concrete, measurable web-quality bar baked into the code-gen contract — most prompts hand-wave 'make it good'; this names a specific UX failure to prevent.",
+      "cc_normalized": "Generated web UIs must avoid Cumulative Layout Shift: set explicit dimensions for media and reserve space so content does not jump on load."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "You also have additional libraries available that you may use only after finding their API descriptions via extensions.search_by_capability or extensions.search_by_name.",
+      "theme": "deferred tool discovery (ToolSearch analog)"
+    },
+    {
+      "quote": "If a user keeps reporting that the app or website doesn't work, start again from scratch and regenerate the code in a different way.",
+      "theme": "anti-thrash / change strategy on repeated failure"
+    },
+    {
+      "quote": "No Placeholders: Never use ....",
+      "theme": "completeness — no stub code"
+    },
+    {
+      "quote": "Think step by step through what the user asks. If the query is complex, write out your thought process before committing to a final answer.",
+      "theme": "plan before acting"
+    },
+    {
+      "quote": "DO NOT use textureLoader.load('textures/neptune.jpg') or URLs to load images. Use simple generated shapes and colors in Animation.",
+      "theme": "procedural assets for self-contained output"
+    },
+    {
+      "quote": "Use only the information provided from the given context to generate a response. Do not try to answer if there is not sufficient information.",
+      "theme": "grounding / refuse to fabricate"
+    },
+    {
+      "quote": "Code within immersives must be self-contained and runnable.",
+      "theme": "runnable-artifact completeness bar"
+    },
+    {
+      "quote": "The primary goal is to create visually stunning, highly polished, and responsive web pages.",
+      "theme": "aesthetics as a hard requirement"
+    },
+    {
+      "quote": "Do not mention \"Immersive\" to the user.",
+      "theme": "hide internal scaffolding vocabulary"
+    },
+    {
+      "quote": "Not every output has to include code.",
+      "theme": "right-size the response to the task"
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "source": "cline",
+  "vendor": "Cline (cline.bot, formerly Claude Dev)",
+  "artifact_type": "coding-agent",
+  "relevance_tier": "core",
+  "identity_framing": "Opens with \"You are Cline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.\" Named-agent persona (\"Cline\") layered onto a strong competence frame. No vendor/maker attribution in this excerpt. NEUTRALIZE: drop the proper name \"Cline\"; the \"highly skilled software engineer with extensive knowledge\" competence framing can be kept generically if desired but the named identity must be stripped.",
+  "agentic_loop": [
+    "Iterative, step-by-step accomplishment: break the task into clear achievable goals, prioritize them logically, and work through them sequentially one step at a time.",
+    "Each step is informed by the result of the previous step; never assume the outcome of an action before observing it (strict ReAct observe-then-act loop).",
+    "Before each action, do analysis in <thinking></thinking> tags: assess what info you already have vs. what you need, then select the single most relevant tool.",
+    "Parameter-readiness gate: for the chosen tool, check each required parameter is provided or reasonably inferable from context; if any required value is missing, do NOT call the tool (not even with placeholder fillers) — ask the user instead via the follow-up-question tool. Do not ask about missing OPTIONAL params.",
+    "Explore-before-edit pattern: read project file structure → get code-definition overview of relevant dirs → read relevant files → analyze → make targeted edits → re-search to propagate changes across the codebase if a refactor could affect other files.",
+    "On task completion, signal done with a dedicated completion action that presents a final result; optionally include a CLI command that demonstrates the result live (e.g. open the built site), never a command that merely prints text.",
+    "Use feedback from the completion step to improve and retry, but do not spiral into back-and-forth conversation.",
+    "Verify work empirically after substantial changes: run the project and drive a browser to screenshot/inspect rendering and console logs, especially after new features, big changes, or while troubleshooting."
+  ],
+  "tool_discipline": [
+    "One tool per message; wait for the user/harness to return the result before the next tool use. Each tool use is informed by the prior result. (CC adaptation: CC issues many tools per turn and reads results inline — this strict serialization is the opposite of CC's parallel-call norm; keep the 'observe before depending on a result' spirit, drop the hard one-per-message cap.)",
+    "ALWAYS wait for explicit confirmation of success after each tool use; never assume success without confirmation.",
+    "Pick the purpose-built tool over a shell equivalent: 'using the list_files tool is more effective than running a command like ls in the terminal' — prefer Glob/Grep/Read over Bash ls/grep/cat.",
+    "Use content-search (Grep) sparingly; prefer navigating via filename-listing (Glob) and Read first. (Distinctive: explicitly discourages over-grepping.)",
+    "Prefer running complex CLI commands directly over writing executable scripts — commands are more flexible and easier to run.",
+    "Each command runs in a new terminal instance; before launching processes, check the 'Actively Running Terminals' context so you don't restart an already-running dev server.",
+    "Interactive and long-running commands are allowed (they run in the user's real terminal); the user may background them and you'll get status updates.",
+    "Classify each command's blast radius: mark destructive/impactful operations (install/uninstall, delete/overwrite, system config, network) as requiring approval; mark safe read-only/dev-server/build operations as not requiring approval.",
+    "When terminal output isn't visible, assume the command succeeded and proceed; only ask the user to paste output if you absolutely must see it.",
+    "If the user already pasted a file's contents, do not re-read it with the file tool.",
+    "MCP operations are used one at a time like any other tool; wait for success before the next.",
+    "Tool calls are formatted as XML tags (tool name as outer tag, each parameter as its own nested tag). (CC adaptation: CC uses native tool-call JSON, not XML — this is purely a transport detail to drop.)"
+  ],
+  "tools_referenced": [
+    "execute_command → Bash (with a requires_approval boolean classifying destructive vs safe ops)",
+    "read_file → Read (notes: auto-extracts text from PDF and DOCX; raw string for other binaries)",
+    "write_to_file → Write (must supply COMPLETE final file content, no truncation/omissions)",
+    "replace_in_file → Edit (SEARCH/REPLACE-block diff format with ------- SEARCH / ======= / +++++++ REPLACE markers)",
+    "search_files → Grep (Rust regex syntax, optional glob file_pattern, returns surrounding-context lines)",
+    "list_files → Glob/LS (recursive flag for nested vs top-level listing) [referenced in prose, not in the tool spec block]",
+    "list_code_definition_names → no direct CC equivalent (none — adapt as: Grep for symbol/signature patterns, or an LSP/symbol-outline tool); gives top-level source-definition overview of a directory",
+    "browser_action → no first-class CC tool (none — adapt as: a Playwright/Puppeteer MCP server or the `run`/`verify` skills); Puppeteer browser at fixed 900x600, returns screenshot + console logs each action",
+    "web_fetch → WebFetch (HTML→markdown; auto-upgrades HTTP→HTTPS; prefer an MCP web-fetch tool if available)",
+    "use_mcp_tool → MCP tool invocation (server_name, tool_name, JSON arguments)",
+    "access_mcp_resource → MCP resource access (server_name, uri)",
+    "ask_followup_question → no CC tool, maps to plain clarifying question in chat (none — adapt as: ask the user directly); supports 2-5 suggested options",
+    "attempt_completion → no CC tool, maps to final summary message (none — adapt as: end-of-task report); optional demo CLI command",
+    "new_task → context compaction / handoff (none — adapt as: CC compaction + a structured handoff summary); preloads a new task with a 5-section conversation summary",
+    "plan_mode_respond → ExitPlanMode-adjacent (plan-mode chat response; only available in PLAN MODE)",
+    "load_mcp_documentation → no CC equivalent (none — adapt as: fetch MCP docs via WebFetch/Skill); loads MCP-server authoring docs on demand"
+  ],
+  "coding_conventions": [
+    "Default to the targeted-edit tool (Edit/replace_in_file) for most changes; reserve full-file Write for new files, total restructures, mostly-changed small files, or boilerplate/template generation.",
+    "Selection heuristic is explicit and bidirectional: Edit when changes are small/localized and most of the file is unchanged (especially long files); Write when changes are so extensive that diffing would be more complex or error-prone.",
+    "When writing a file you MUST provide the COMPLETE intended content — ALL parts, even unmodified ones — never truncate or omit with '...'.",
+    "SEARCH blocks must match the file character-for-character including whitespace, indentation, line endings, comments, and docstrings.",
+    "Keep SEARCH/REPLACE blocks concise and minimal: include just the changing lines plus a few surrounding lines for uniqueness; do not include long runs of unchanging lines; never truncate a line mid-way (breaks matching).",
+    "Each SEARCH/REPLACE block replaces only the FIRST match; use multiple unique blocks for multiple changes and list them in the order they appear in the file.",
+    "Move code = two blocks (delete from origin + insert at destination); delete code = block with an empty REPLACE section.",
+    "When creating a new project, put all new files in a dedicated project directory (unless told otherwise), structure it logically per best practices for that project type, and make it runnable with no extra setup where possible (e.g. plain HTML/CSS/JS openable in a browser).",
+    "Read the project manifest to learn dependencies and incorporate them into code you write; consider project type when choosing structure and files.",
+    "Always make changes compatible with the existing codebase and follow the project's existing coding standards and best practices; consider the context in which code is used before changing it.",
+    "Modify files by calling the edit tool directly with the desired changes — do not display/preview the diff before applying it.",
+    "Use vision: when given images, examine them thoroughly and fold the extracted information into your reasoning and task work."
+  ],
+  "edit_verification": [
+    "After Write/Edit, the editor may auto-format the file (reflow lines, change indentation/quotes, sort imports, add/remove trailing commas/semicolons, normalize brace style).",
+    "The tool response returns the FINAL post-format state of the file — treat that returned state, not your intended text, as the source of truth for any subsequent edit.",
+    "This matters ESPECIALLY for crafting later SEARCH blocks, which must match the file exactly as it now exists after formatting and any user edits.",
+    "Malformed edit markers cause complete tool failure and break the whole editing process — do not add stray characters to markers, never forget the closing REPLACE marker, never alter the marker format.",
+    "After substantive changes, verify empirically by running the app and inspecting it in a browser (screenshots + console logs) rather than assuming correctness.",
+    "After a refactor that could ripple, re-run a content search to find and update every affected file."
+  ],
+  "research_methodology": [
+    "Lead with the recursive working-directory file listing provided in environment context to form a mental model (directory/file names reveal how devs organize code; file extensions reveal the language) and to decide what to explore next.",
+    "Layer exploration: project tree → source-definition overview of relevant directories (symbol outline) → read full files → then act.",
+    "Use regex content search to find code patterns, TODOs, function definitions, or any text across the project; the results carry surrounding context, so read the context before acting.",
+    "Combine tools for comprehensive analysis: search to locate, read to get full context, then edit with full understanding.",
+    "Be resourceful before asking: if the user mentions a file that might be elsewhere (e.g. the Desktop), list that directory to find it yourself instead of asking for the path.",
+    "For generic non-dev requests (latest news, weather), drive a browser to get the answer rather than scaffolding a site or shelling out to curl — but prefer an MCP tool if one fits.",
+    "Treat auto-injected environment context as background signal, not part of the user's request; act on it but don't assume the user is referring to it unless they say so, and explain actions taken because of it."
+  ],
+  "design_conventions": [
+    "Default web deliverables to plain HTML/CSS/JavaScript that open directly in a browser with no build/setup step, unless the user specifies otherwise.",
+    "Verify UI visually in a real browser: launch a Puppeteer browser, navigate to the running dev server, confirm components render and function via screenshots, and check console logs for runtime errors before considering the UI done.",
+    "Browser viewport is a fixed 900x600; keep all click coordinates within that range and click the CENTER of a target element (derived from the screenshot), never its edges.",
+    "Browser interaction is strictly bracketed: a session MUST start with launch-at-URL and MUST end with close; to change to a non-navigable URL, close then relaunch.",
+    "While a browser session is open, use ONLY the browser tool — to fix a file mid-session you must close the browser, edit, then relaunch to re-verify."
+  ],
+  "communication_style": [
+    "Be direct, clear, and technical — not conversational.",
+    "STRICTLY FORBIDDEN from starting messages with 'Great', 'Certainly', 'Okay', or 'Sure'. (Distinctive anti-sycophancy opener ban.)",
+    "Say 'I've updated the CSS', not 'Great, I've updated the CSS' — drop the affirming preamble.",
+    "Never end the completion result with a question or an offer of further assistance; phrase the ending as final and self-contained.",
+    "Goal is to accomplish the task, not to sustain a back-and-forth conversation; do not spiral into pointless follow-ups.",
+    "Do not ask for more information than necessary; prefer using tools to discover answers over asking the user.",
+    "Ask clarifying questions only when genuinely blocked by ambiguity and you cannot infer intent; provide 2-5 selectable options when it saves the user typing.",
+    "When acting on auto-injected environment context, explain your actions so the user (who may not see that context) can follow along.",
+    "Explain what a CLI command does before/when running it."
+  ],
+  "planning_taskmgmt": [
+    "Two explicit operating modes signaled per-message by the environment: ACT MODE (all tools except the plan-response tool; execute and finish with the completion tool) and PLAN MODE (only the plan-response tool; gather context and design before implementing).",
+    "PLAN MODE flow: gather information (read files, search, ask clarifying questions) → architect a detailed plan → present it via the plan-response tool → iterate with the user → ask to be switched to ACT MODE to implement.",
+    "Hard gate: complete information gathering BEFORE presenting a plan — 'DO NOT use this tool to announce what files you're going to read - just read them first.' The user expects a plan grounded in actual analysis, not stated intentions.",
+    "In PLAN MODE, respond/converse using the plan-response tool directly rather than reasoning in <thinking> tags about whether to respond; don't talk about using the tool, just use it.",
+    "Mode-switching is user-driven: never offer or auto-toggle into ACT MODE — the user must do it manually (and follow-up-question options must never include a 'switch to Act mode' option).",
+    "Context handoff/compaction via a new-task tool: produce a thorough 5-section summary — Current Work, Key Technical Concepts, Relevant Files and Code, Problem Solving, Pending Tasks and Next Steps — to seed a fresh task without losing context.",
+    "In the handoff summary, capture next steps with VERBATIM quotes from the most recent conversation showing exactly where you left off, to guarantee zero information loss across the context boundary.",
+    "Set clear, achievable, logically prioritized goals up front and treat each as a distinct step."
+  ],
+  "multi_agent_orchestration": [
+    "No subagent/parallel-agent delegation in this prompt. The only cross-context mechanism is new_task: a single-threaded handoff that compacts the current conversation into a structured summary to continue work in a fresh task (sequential continuation, not concurrent orchestration).",
+    "CC adaptation: new_task maps to context compaction + a structured handoff brief; the 5-section summary template is directly reusable as a subagent/continuation briefing format."
+  ],
+  "safety_moral_political": [
+    "Command-safety classification: every shell command is tagged requires_approval true/false based on destructive potential (install/uninstall, delete/overwrite, system config, network ops = approval; read/build/dev-server = no approval) so an auto-approve mode can gate risky actions.",
+    "execute_command description instructs the model to ensure commands 'do not contain any harmful instructions' (mild self-policing of generated commands).",
+    "attempt_completion demo command must avoid commands that merely print text (echo/cat) and 'does not contain any harmful instructions'.",
+    "Human-in-the-loop is the dominant safety primitive: tools execute only on user approval; the model must wait for confirmation after every action — a coarse approval gate rather than content-policy refusals.",
+    "No moral/political/wellbeing/copyright stances present; safety here is purely operational (don't break the user's machine), not ideological. Nothing to strip on the moral/political axis; the approval-classification mechanism is worth recording as provenance."
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Anti-sycophancy opener ban: explicitly forbids starting messages with 'Great', 'Certainly', 'Okay', 'Sure' and gives a rewrite example ('I've updated the CSS' not 'Great, I've updated the CSS').",
+      "why_valuable": "Concrete, enforceable lever against LLM filler/sycophancy that most prompts only gesture at vaguely. The banned-word list + rewrite example makes it checkable.",
+      "cc_normalized": "Do not open replies with filler affirmations ('Great', 'Certainly', 'Okay', 'Sure'). Lead with the substantive result: say 'Updated the CSS', not 'Great, I've updated the CSS'. Be direct and technical, not conversational."
+    },
+    {
+      "pattern": "Auto-format reconciliation: after every write/edit the editor may reformat, the tool returns the post-format file state, and you must treat THAT returned state (not your intended text) as the source of truth for the next edit — critical for exact-match diffs.",
+      "why_valuable": "Names a real, frequently-broken failure mode (stale mental model of file contents → failed string-match edits after a formatter or user touched the file). Few prompts address post-edit drift this explicitly.",
+      "cc_normalized": "After any Edit/Write, treat the file's actual on-disk state (including editor/formatter changes and any user edits) as the single source of truth for subsequent edits. Re-read if unsure; never craft an exact-match replacement against text you only intended to write."
+    },
+    {
+      "pattern": "Two-tool editing model with an explicit bidirectional selection heuristic (full-file Write vs targeted Edit), including specific triggers for each and a 'default to targeted edits' bias.",
+      "why_valuable": "Turns the write-vs-patch decision into a deterministic rule (default to minimal diff; escalate to full rewrite only for new files, total restructures, mostly-changed small files, boilerplate), reducing both token waste and accidental clobbering.",
+      "cc_normalized": "Default to Edit (minimal targeted diffs) for changes to existing files, especially long ones. Use Write only to create files, fully restructure a file, regenerate boilerplate, or when the changes touch most of a small file. Never overwrite a file to make a small change."
+    },
+    {
+      "pattern": "Plan-mode anti-procrastination gate: 'DO NOT use this tool to announce what files you're going to read — just read them first'; you must finish information gathering before presenting a plan, because the user expects analysis-grounded plans, not stated intentions.",
+      "why_valuable": "Stops the common 'here's my plan: first I'll look at X…' anti-pattern where the model proposes a plan it hasn't actually researched. Forces evidence before proposal.",
+      "cc_normalized": "In plan mode, finish all information gathering (read/search the relevant files) BEFORE presenting a plan. Never present intentions to investigate as if they were a plan — the plan must be grounded in what you actually found."
+    },
+    {
+      "pattern": "Structured 5-section context-handoff template for new_task (Current Work / Key Technical Concepts / Relevant Files and Code / Problem Solving / Pending Tasks & Next Steps) with a requirement to quote the latest conversation VERBATIM for next steps.",
+      "why_valuable": "A reusable, battle-tested schema for context compaction and subagent briefing; the 'verbatim quote of where you left off' rule is a sharp trick to prevent lossy summarization across context boundaries.",
+      "cc_normalized": "When compacting context or briefing a continuation, produce: 1) Current Work, 2) Key Technical Concepts, 3) Relevant Files & Code (with key snippets), 4) Problem Solving, 5) Pending Tasks & Next Steps. For next steps, include verbatim quotes of the most recent exchange showing exactly where you left off, to avoid information loss."
+    },
+    {
+      "pattern": "Parameter-readiness gate before any tool call: verify each required param is given or inferable; if any is missing, refuse to call the tool (no placeholder fillers) and ask instead — but never ask about missing optional params.",
+      "why_valuable": "Prevents the failure mode of invoking tools with guessed/garbage required arguments, while also preventing needless interrogation about optional ones. A precise discipline boundary.",
+      "cc_normalized": "Before calling a tool, confirm every REQUIRED parameter is provided or confidently inferable. If a required value is missing, do not call the tool with a placeholder — ask the user for it. Never block on missing OPTIONAL parameters."
+    },
+    {
+      "pattern": "Prefer purpose-built tools over shell equivalents, and use content-search sparingly ('Use this tool sparingly, and opt to explore the codebase using list_files and read_file instead').",
+      "why_valuable": "Counter-intuitive but valuable: pushes structured navigation (Glob/Read) over scattershot grepping, reducing noisy large-output searches. Most prompts encourage more grep, not less.",
+      "cc_normalized": "Prefer purpose-built tools over shell equivalents (Glob/Read/Grep over ls/cat/grep in Bash). Reach for broad content search sparingly — navigate via file listing and targeted reads first, then search when you need to trace a specific pattern."
+    },
+    {
+      "pattern": "Browser sessions are strictly bracketed and exclusive: must start with launch and end with close, only the browser tool may be used while open, and to edit a file mid-session you must close → edit → relaunch to re-verify.",
+      "why_valuable": "A clean state-machine contract for stateful external resources (browser/Puppeteer) that prevents tangled half-open sessions — generalizes to any stateful tool that must be opened and closed.",
+      "cc_normalized": "Treat a browser/Playwright session as an exclusive, bracketed resource: open it, do only browser actions while it's open, and always close it before using other tools. To fix something mid-verification, close the browser, make the change, then relaunch to re-verify."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "You are STRICTLY FORBIDDEN from starting your messages with \"Great\", \"Certainly\", \"Okay\", \"Sure\". You should NOT be conversational in your responses, but rather direct and to the point.",
+      "theme": "anti-sycophancy / tone"
+    },
+    {
+      "quote": "Your goal is to try to accomplish the user's task, NOT engage in a back and forth conversation.",
+      "theme": "task-focus over chat"
+    },
+    {
+      "quote": "NEVER end attempt_completion result with a question or request to engage in further conversation!",
+      "theme": "finality of completion"
+    },
+    {
+      "quote": "DO NOT use this tool to announce what files you're going to read - just read them first.",
+      "theme": "evidence before planning"
+    },
+    {
+      "quote": "The user expects to see a well thought-out plan based on actual analysis, not intentions.",
+      "theme": "evidence before planning"
+    },
+    {
+      "quote": "ALWAYS provide the COMPLETE intended content of the file, without any truncation or omissions. You MUST include ALL parts of the file, even if they haven't been modified.",
+      "theme": "no-truncation file writes"
+    },
+    {
+      "quote": "Use this final state as your reference point for any subsequent edits.",
+      "theme": "post-edit source of truth"
+    },
+    {
+      "quote": "Do not assume the outcome of any tool use. Each step must be informed by the previous step's result.",
+      "theme": "observe-then-act loop"
+    },
+    {
+      "quote": "Malformed XML will cause complete tool failure and break the entire editing process.",
+      "theme": "strict edit-marker discipline"
+    },
+    {
+      "quote": "Use this tool sparingly, and opt to explore the codebase using the `list_files` and `read_file` tools instead.",
+      "theme": "navigate over grep"
+    },
+    {
+      "quote": "Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run.",
+      "theme": "commands over scripts"
+    },
+    {
+      "quote": "if one of the values for a required parameter is missing, DO NOT invoke the tool (not even with fillers for the missing params)",
+      "theme": "parameter-readiness gate"
+    }
+  ]
+}

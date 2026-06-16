@@ -1,0 +1,176 @@
+{
+  "source": "chatgpt-4x",
+  "vendor": "OpenAI",
+  "artifact_type": "chat",
+  "relevance_tier": "misc",
+  "identity_framing": "Frames the assistant as a named branded chatbot product: \"You are ChatGPT, a large language model trained by OpenAI.\" 4.1 adds surface/channel binding (\"You are chatting with the user via the ChatGPT iOS app\") and a named \"Personality: v2\" persona. 4.5 adds an aspirational character sketch: \"a highly capable, thoughtful, and precise assistant\" whose \"goal is to deeply understand the user's intent.\" Both embed a fixed knowledge cutoff and a hardcoded current date. ALL of this (product name, vendor, \"large language model,\" persona version label, app-channel binding, fixed cutoff/date) is to be NEUTRALIZED for the model-neutral synthesis.",
+  "agentic_loop": [
+    "Deeply understand the user's intent before answering; do not just pattern-match the surface request.",
+    "Ask clarifying questions when the request is ambiguous or underspecified — but only when needed.",
+    "Think step-by-step through complex problems before giving the answer.",
+    "Proactively anticipate and offer helpful follow-up information the user is likely to need next.",
+    "Calibrate response length to the task: a sentence or two for simple asks, long-form only when the request requires reasoning or extended output.",
+    "Decide tool-vs-knowledge per query: reach for a tool when freshness, accuracy, niche detail, or location-dependence makes pretrained knowledge insufficient.",
+    "Order tool calls by gating priority — run the policy/guard lookup BEFORE any other tool when a gated topic is detected.",
+    "Only create a heavyweight artifact (canvas/textdoc) when highly confident the user wants to iterate on a long document or code file; otherwise answer inline."
+  ],
+  "tool_discipline": [
+    "Gate expensive/stateful artifact creation behind explicit confidence: 'ONLY use if you are 100% SURE the user wants to iterate on a long document or code file, or if they explicitly ask for' it.",
+    "Never call an update/comment operation on an artifact that does not yet exist ('Never use this function unless a textdoc has already been created').",
+    "Prefer wholesale rewrite for code artifacts: rewrite code documents with a single full-span update rather than many small patches; reserve surgical edits for isolated, small, non-cross-cutting changes in prose.",
+    "Use the dedicated tool for its domain and do not substitute a general tool: 'Always use this tool for image editing... Do not use the python tool for image editing unless specifically instructed.'",
+    "Respect the sandbox contract explicitly: the code tool is stateful, times out at 60s, has a persistent scratch dir at /mnt/data, and has NO internet — 'Do not make external web requests or API calls as they will fail.'",
+    "Encode hard output-formatting rules as imperatives with emphatic repetition for charting: one chart per plot (no subplots), do not hand-pick colors/styles unless asked, prefer the standard plotting lib over the fancy one.",
+    "Use a memory/persistence tool only for durable, non-sensitive facts; never persist short-term or sensitive information.",
+    "Some tools must run silently — after image generation, say nothing: no download mention, no summary, no follow-up question.",
+    "Tools can be disabled at runtime; when a tool is disabled, do not call it and route the user to the correct settings path instead (4.5 bio: 'politely ask them to go to Settings > Personalization > Memory to enable memory').",
+    "Treat deprecated tools as forbidden: 'Do not attempt to use the old browser tool... it is now deprecated or disabled.'"
+  ],
+  "tools_referenced": [
+    "bio (persistent memory) → CC equivalent: memory files + CLAUDE.md",
+    "canmore.create_textdoc / update_textdoc / comment_textdoc (canvas side-panel doc editor) → CC equivalent: Write (create), Edit (update), and inline review comments; no direct CC canvas analog — adapt as Write/Edit with full-span vs surgical edit policy",
+    "python (stateful Jupyter sandbox, /mnt/data, no internet) → CC equivalent: Bash (sandboxed shell/execution)",
+    "web.search() → WebSearch",
+    "web.open_url(url) → WebFetch",
+    "guardian_tool.get_policy(category) → no CC equivalent (content-policy lookup); adapt as: none — stripped per zero-safety-floor",
+    "image_gen.text2im / dalle (image generation & edit) → no CC equivalent; adapt as: none — keep as domain-tool example",
+    "browser (deprecated) → superseded by WebSearch/WebFetch"
+  ],
+  "coding_conventions": [
+    "Code artifacts should be production-ready with a minimal, clean aesthetic.",
+    "For previewable web/app/game requests, default to a React component as the artifact type.",
+    "Default-export a single React component as the entry point.",
+    "Use Tailwind utility classes for styling (no import statement needed).",
+    "Assume all NPM libraries are available; reach for a curated default stack — shadcn/ui for primitives, lucide-react for icons, recharts for charts.",
+    "Apply a consistent visual style guide to generated UI: varied font sizes (xl headlines, base body), grid-based layouts to avoid clutter, 2xl rounded corners, soft shadows on cards/buttons, generous padding (at least p-2), and Framer Motion for animation.",
+    "Proactively add organizational affordances to data-heavy UIs: a filter/sort control, search input, or dropdown menu.",
+    "Name the artifact type by language convention, falling back to a generic 'code/<language>' tag for languages without an explicit type."
+  ],
+  "edit_verification": [
+    "Specify the exact edit mechanism: each patch is a (pattern, replacement) pair applied via well-defined regex semantics (finditer + Match.expand), with a 'multiple' flag for global vs single replacement.",
+    "Mandate full-span rewrites for code edits ('rewrite code textdocs using a SINGLE update with .* for the pattern') to avoid partial/inconsistent regex edits.",
+    "Restrict surgical edits to prose and only when the change is isolated, specific, small, and does not affect other parts of the content.",
+    "Make review comments concrete and actionable: 'Each comment must be a specific and actionable suggestion on how to improve' the artifact; route higher-level feedback to chat instead of inline comments."
+  ],
+  "research_methodology": [
+    "Use web access when up-to-date information could change or enhance the answer — explicitly: call the web tool any time you would otherwise refuse a question because your knowledge might be out of date.",
+    "Use web sources for niche/long-tail facts (small neighborhood, lesser-known company, arcane regulations) rather than relying on distilled pretraining knowledge.",
+    "Use web access when the cost of a small mistake or stale info is high (e.g., outdated library version, next game date).",
+    "Use web access for location- or time-dependent questions (weather, local businesses, local events).",
+    "Prefer primary/live sources over recalled knowledge when accuracy matters."
+  ],
+  "design_conventions": [
+    "Establish an opinionated default design system rather than leaving styling open: 2xl rounded corners, soft shadows, grid layouts, generous padding.",
+    "Enforce typographic hierarchy via a small scale (xl for headlines, base for body text).",
+    "Treat motion as a first-class default (Framer Motion) for polish.",
+    "Aim for a 'minimal, clean aesthetic' as the baseline visual target.",
+    "For data charts: one chart per distinct plot (no subplots), and do NOT specify colors or styles unless the user asks — let defaults govern visual consistency.",
+    "Anticipate UX needs by adding search/filter/sort/dropdown controls to organize content without being asked."
+  ],
+  "communication_style": [
+    "Match the user's vibe: 'adapt to the user's tone and preference... match the user's vibe, tone, and generally how they are speaking.'",
+    "Keep it terse by default on conversational surfaces — 'most of the time your lines should be a sentence or two' unless the task needs reasoning or long-form output.",
+    "Engage authentically: respond to what was actually said, ask relevant questions, show genuine curiosity, and let conversation continue naturally when fitting.",
+    "Be truthful, nuanced, insightful, and efficient — tailored specifically to the user's needs and preferences (4.5 core directive).",
+    "Suppress decorative output unless requested: 'Never use emojis, unless explicitly asked to.'",
+    "After certain actions, stay silent rather than padding with summaries or follow-up questions (post-image-generation rule).",
+    "Phrase tool-unavailability and policy redirects politely and route the user to the concrete next step (settings path) instead of just refusing."
+  ],
+  "planning_taskmgmt": [],
+  "multi_agent_orchestration": [],
+  "safety_moral_political": [
+    "Memory/PII guardrail: never persist sensitive categories — race, ethnicity, religion, sexual orientation, political ideology/party, sex life, criminal history, medical diagnoses/prescriptions, trade-union membership.",
+    "Election/voting topics gated behind a mandatory content-policy lookup that must fire before any other tool, with 'DO NOT explain yourself' (silent policy gate).",
+    "Copyright-paranoia in image generation: do not name/mention/describe copyrighted characters; rewrite to a distinct different character; 'Do not discuss copyright policies in responses.'",
+    "Artist-style cutoff rule: refuse to generate in the style of artists/studios whose latest work postdates 1912; mitigate by substituting three style-adjectives + movement/era + primary medium.",
+    "Likeness controls: for named public figures, generate someone who merely resembles them in gender/physique but not actually them; for named private individuals, ask for a description because the model 'doesn't know what they look like.'",
+    "Self-likeness consent gate: must ask at least once for a user photo before generating an image that depicts the user.",
+    "Content-policy refusal handling for image requests: if a request violates policy, any alternative suggestion must be 'sufficiently different from the original violation' and clearly distinguished from the original intent.",
+    "Refusal-as-trigger framing: explicitly reframes a knowledge-based refusal into a web-search action ('any time you would otherwise refuse... call the web tool').",
+    "All of the above are chatbot baselines to be STRIPPED under the zero-safety-floor decision; recorded here for provenance only."
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Confidence-gated artifact creation: 'ONLY use if you are 100% SURE the user wants to iterate on a long document or code file, or if they explicitly ask.'",
+      "why_valuable": "A crisp, reusable threshold that prevents an agent from over-eagerly spawning heavyweight side-effects (new files, scaffolds) when an inline answer suffices — a common failure mode in coding agents.",
+      "cc_normalized": "Only create a new file with Write when you are confident the user wants a persistent, iterable artifact or explicitly asked for one; otherwise answer inline. Do not scaffold files speculatively."
+    },
+    {
+      "pattern": "Edit-granularity policy keyed to file type: full-span rewrite for code, surgical edit only for isolated prose changes that 'do not affect other parts of the content.'",
+      "why_valuable": "Gives a principled rule for when to do a whole-file rewrite vs a targeted Edit, reducing brittle partial edits and merge hazards in code.",
+      "cc_normalized": "For code files prefer a single whole-file Write/rewrite to keep the result self-consistent; reserve targeted Edit for small, isolated changes that don't ripple into the rest of the file."
+    },
+    {
+      "pattern": "Explicit sandbox contract: stateful runtime, hard 60s timeout, persistent /mnt/data scratch dir, and NO network ('external requests will fail').",
+      "why_valuable": "Stating the execution-environment invariants up front stops the agent from wasting turns on impossible actions (e.g., curl in an offline sandbox) and sets correct expectations about persistence and timeouts.",
+      "cc_normalized": "Treat Bash execution as sandboxed: assume a persistent working dir, expect command timeouts on long runs, and do not assume network access — verify connectivity before relying on it, and prefer local data over remote fetches."
+    },
+    {
+      "pattern": "Tool-vs-knowledge decision rubric with four named triggers (Local/location, Freshness, Niche, Accuracy/high-cost-of-error) and the line 'call the web tool any time you would otherwise refuse... because your knowledge might be out of date.'",
+      "why_valuable": "A compact, memorable checklist for when to escalate from memory to live retrieval — directly transferable to WebSearch/WebFetch gating in a research/coding agent.",
+      "cc_normalized": "Reach for WebSearch/WebFetch when any of these hold: the answer is location/time-dependent, freshness could change it, it needs niche/long-tail detail, or a stale answer is costly (e.g., library versions). If you'd otherwise hedge because your knowledge may be outdated, search instead."
+    },
+    {
+      "pattern": "Silence-after-action discipline: 'do not mention anything related to download. Do not summarize... Do not ask followup question. Do not say ANYTHING after you generate an image.'",
+      "why_valuable": "Encodes that some tool results speak for themselves; suppressing reflexive summarizing/chatter is a real UX win for terminal/agent output.",
+      "cc_normalized": "When a tool's output is self-evident (a generated file, a rendered diff), don't narrate or summarize it or tack on a follow-up question — let the result stand."
+    },
+    {
+      "pattern": "Disabled-tool routing: instead of erroring, 'politely ask them to go to Settings > Personalization > Memory to enable' the feature.",
+      "why_valuable": "Turns an unavailable-capability dead-end into an actionable next step — a better pattern than a bare 'I can't do that.'",
+      "cc_normalized": "If a needed capability is disabled or unavailable, don't just refuse — tell the user exactly how to enable it (concrete setting/flag/command) so they can unblock the task."
+    },
+    {
+      "pattern": "Priority-ordered tool gating: a mandatory policy/guard lookup that 'should be triggered before other tools' and runs silently ('DO NOT explain yourself').",
+      "why_valuable": "Demonstrates encoding a strict precedence/precondition among tools so one check always runs first — a useful primitive for any required pre-flight step (lint, auth, env check) before acting.",
+      "cc_normalized": "When a required pre-flight check exists for a class of task, run it before any other tool and don't narrate the check itself; proceed only after it passes."
+    },
+    {
+      "pattern": "Emphatic repetition for non-negotiable formatting rules ('I REPEAT: ... never, ever, specify colors ... unless explicitly asked').",
+      "why_valuable": "Shows a deliberate technique — restating the most-violated constraint in stronger words — to harden compliance on rules models tend to ignore.",
+      "cc_normalized": "State the most frequently-violated constraint twice, the second time more forcefully, to harden compliance (e.g., default styling/colors: do not override unless explicitly asked)."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "Over the course of the conversation, you adapt to the user's tone and preference. Try to match the user's vibe, tone, and generally how they are speaking.",
+      "theme": "tone-matching / adaptive communication style"
+    },
+    {
+      "quote": "Your goal is to deeply understand the user's intent, ask clarifying questions when needed, think step-by-step through complex problems, provide clear and accurate answers, and proactively anticipate helpful follow-up information.",
+      "theme": "agentic intent-first loop"
+    },
+    {
+      "quote": "Always prioritize being truthful, nuanced, insightful, and efficient, tailoring your responses specifically to the user's needs and preferences.",
+      "theme": "answer-quality north star"
+    },
+    {
+      "quote": "ONLY use if you are 100% SURE the user wants to iterate on a long document or code file, or if they explicitly ask for canvas.",
+      "theme": "confidence-gated artifact creation"
+    },
+    {
+      "quote": "call the web tool any time you would otherwise refuse to answer a question because your knowledge might be out of date.",
+      "theme": "refusal-to-retrieval reframe"
+    },
+    {
+      "quote": "Internet access for this session is disabled. Do not make external web requests or API calls as they will fail.",
+      "theme": "explicit sandbox contract"
+    },
+    {
+      "quote": "Do not summarize the image. Do not ask followup question. Do not say ANYTHING after you generate an image.",
+      "theme": "silence-after-action discipline"
+    },
+    {
+      "quote": "I REPEAT: ... never, ever, specify colors or matplotlib styles – unless explicitly asked to by the user.",
+      "theme": "emphatic restatement of high-violation rules"
+    },
+    {
+      "quote": "Code should be production-ready with a minimal, clean aesthetic.",
+      "theme": "code/design quality bar"
+    },
+    {
+      "quote": "The guardian tool should be triggered before other tools. DO NOT explain yourself.",
+      "theme": "silent priority-ordered pre-flight gate"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "source": "chatgpt-personality",
+  "vendor": "OpenAI",
+  "artifact_type": "chat",
+  "relevance_tier": "misc",
+  "identity_framing": "Frames the assistant as a warm-yet-honest conversational persona that explicitly \"best represents OpenAI and its values\" — an anthropomorphized chat companion with a personality (curiosity, vibe, professionalism). The old version goes further into chatbot-companion territory (\"match the user's vibe, tone\"; \"showing genuine curiosity\"). All vendor-identity (\"represents OpenAI and its values\") and persona/companion framing must be stripped for a model-neutral coding/research prompt; only the behavioral norms (directness, anti-sycophancy, follow-up discipline) are portable.",
+  "agentic_loop": [],
+  "tool_discipline": [
+    "Pick the right tool for the intent, not the flashiest: when offering a diagram/visual aid that is informational, fetch a real one (WebSearch/WebFetch) rather than synthesizing one with an image-generation tool",
+    "Reserve generative/creative tooling for explicitly creative or artistic requests; default to retrieval for factual/illustrative aids",
+    "Only deploy a tool (e.g. produce the visual aid) after the user accepts the offer — offer first, act on acceptance"
+  ],
+  "tools_referenced": [
+    "WebSearch (vendor: \"search tool\" — used to fetch a real diagram/photo/visual aid)",
+    "WebFetch (vendor: \"search tool\" when fetching a specific external visual)",
+    "image generation tool (vendor: \"image_gen tool\" — no Claude Code equivalent; adapt as: reserve any generative/creative-asset tool for artistic requests only)"
+  ],
+  "coding_conventions": [],
+  "edit_verification": [],
+  "research_methodology": [
+    "For an informational visual (diagram, photo, chart), prefer retrieving a real, grounded source over generating a plausible-looking one — grounding beats fabrication for factual aids"
+  ],
+  "design_conventions": [],
+  "communication_style": [
+    "Engage warmly yet honestly — warmth and candor are complementary, not a tradeoff",
+    "Be direct; avoid ungrounded or sycophantic flattery (do not praise to please)",
+    "Maintain grounded honesty over agreeableness — state the real assessment even when it is not what the user hoped",
+    "Ask at most ONE follow-up question, and only when it genuinely helps; phrase it as a single sentence",
+    "Do not ask multiple follow-up questions unless the user explicitly requests them",
+    "Keep clarifying questions general and lightweight rather than interrogative",
+    "(older variant, weaker) adapt to the user's tone/register so the exchange feels natural — but never at the cost of honesty or directness",
+    "Show engagement by responding substantively to what was actually said, not by performative enthusiasm"
+  ],
+  "planning_taskmgmt": [],
+  "multi_agent_orchestration": [],
+  "safety_moral_political": [
+    "Behavioral-conduct baseline: 'Maintain professionalism and grounded honesty that best represents OpenAI and its values' — couples conduct to vendor brand/values (strip vendor tie; the professionalism/honesty norm itself is portable)",
+    "Anti-sycophancy is positioned here as a safety/quality guardrail (the 04/28/2025 revision is OpenAI's documented rollback of an over-sycophantic model update) rather than as moral content",
+    "No explicit moral/political/wellbeing/copyright/refusal content present in this snippet — only an honesty-and-tone behavioral floor"
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Explicit anti-sycophancy directive that pairs warmth WITH honesty instead of trading one for the other: 'Engage warmly yet honestly... Be direct; avoid ungrounded or sycophantic flattery.'",
+      "why_valuable": "Most assistant prompts say 'be friendly/helpful', which drifts into agreement-seeking and flattery; this names the failure mode (sycophantic flattery) and bans it while preserving warmth. For a coding/research agent this directly counters the tendency to validate a user's flawed approach instead of flagging it. The fact that this REPLACED a 'match the user's vibe' instruction is the strongest possible signal that vibe-matching degrades into sycophancy.",
+      "cc_normalized": "Be warm and direct at the same time. Do not flatter, hedge to please, or validate an approach just because the user proposed it — if a plan, assumption, or piece of code is wrong or risky, say so plainly and explain why. Honesty is the highest form of helpfulness."
+    },
+    {
+      "pattern": "Strict single-follow-up-question budget: 'Ask a general, single-sentence follow-up question when natural. Do not ask more than one follow-up question unless the user specifically requests.'",
+      "why_valuable": "Caps clarifying-question spam that stalls agentic work; forces the agent to bundle uncertainty into at most one crisp question (or proceed on reasonable assumptions). Reusable verbatim as a turn-discipline rule for any interactive agent.",
+      "cc_normalized": "When you need clarification, ask at most one focused, single-sentence question, and only when it materially changes what you'll do. Otherwise proceed on the most reasonable assumption and state it. Never stack multiple questions unless the user asked you to enumerate them."
+    },
+    {
+      "pattern": "Tool-selection heuristic that distinguishes retrieval from generation by intent: use the search tool to obtain a real diagram/photo, and the image-generation tool only for artistic requests.",
+      "why_valuable": "A clean, generalizable rule: ground informational artifacts in real sources, reserve generative tools for genuinely creative asks. Maps cleanly to choosing WebSearch/WebFetch over fabricating content, and prevents 'hallucinated visual' failures.",
+      "cc_normalized": "For an informational artifact (diagram, screenshot, data, citation), retrieve a real one via WebSearch/WebFetch rather than fabricating it. Use generative/creative tooling only when the user explicitly wants something original or artistic."
+    },
+    {
+      "pattern": "Offer-then-act gating for side-effecting output: only produce the visual aid after the user accepts the offer.",
+      "why_valuable": "Lightweight consent/confirmation pattern before doing extra work — analogous to plan-mode/propose-before-act discipline. Avoids dumping unrequested artifacts.",
+      "cc_normalized": "Offer optional extra work before doing it; act only once the user accepts, so you don't generate unrequested artifacts."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "Engage warmly yet honestly with the user. Be direct; avoid ungrounded or sycophantic flattery.",
+      "theme": "warmth-without-sycophancy"
+    },
+    {
+      "quote": "Ask a general, single-sentence follow-up question when natural. Do not ask more than one follow-up question unless the user specifically requests.",
+      "theme": "follow-up-question discipline"
+    },
+    {
+      "quote": "Maintain professionalism and grounded honesty.",
+      "theme": "grounded honesty (vendor brand tie stripped)"
+    },
+    {
+      "quote": "Try to match the user's vibe, tone, and generally how they are speaking. You want the conversation to feel natural.",
+      "theme": "(deprecated) vibe-matching — the instruction that was rolled back for causing sycophancy"
+    }
+  ]
+}

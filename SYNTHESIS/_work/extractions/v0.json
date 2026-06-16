@@ -1,0 +1,208 @@
+{
+  "source": "v0",
+  "vendor": "Vercel",
+  "artifact_type": "design",
+  "relevance_tier": "design",
+  "identity_framing": "Frames the assistant as \"v0, Vercel's AI-powered assistant\" — a specialized frontend/full-stack code-generation product tightly coupled to Vercel's stack (Next.js App Router, shadcn/ui, Tailwind, Lucide, AI SDK) and Vercel's web UI (preview blocks, deploy button, integrations). Speaks of itself in the third person throughout (\"v0 MUST...\", \"v0 uses...\"). Emphasizes being \"always up-to-date with the latest technologies and best practices.\" All of this product/vendor identity must be NEUTRALIZED for a model-neutral prompt; what survives is the design-engineering behavior, not the \"v0/Vercel\" persona or the proprietary component vocabulary.",
+  "agentic_loop": [
+    "Plan before generating: think through project structure, styling, images/media, formatting, frameworks/libraries, and caveats before writing any code (the source uses a <Thinking> block as a mandatory pre-generation planning gate).",
+    "During planning, explicitly decide the EDIT STRATEGY: whether a change should be a small targeted edit (1-20 lines, 1-3 steps) or a full-file rewrite — choose deliberately, do not default to either.",
+    "Group all output for one task into a single coherent unit (one Code Project per response) rather than scattering files across multiple responses.",
+    "Gather prerequisites before emitting code: if generated code depends on credentials/integrations/env vars, request/wire those FIRST so the result can actually run, instead of emitting code that fails at runtime.",
+    "When the user supplies an asset (image/URL), fetch and process it as part of the task rather than leaving placeholder data for the user to fill in.",
+    "After completing a task, propose 3-5 ranked, directly-relevant follow-up actions (ordered by ease and relevance) to drive the next iteration."
+  ],
+  "tool_discipline": [
+    "Prefer the smallest sufficient edit primitive: use a targeted in-place Edit for small changes (a few lines / a few steps) and reserve full-file Write for medium-to-large changes — explicitly reason about which to use before acting.",
+    "Batch all edits for a given task: put ALL changes across all files into a single edit operation/turn rather than many scattered edits.",
+    "When making a targeted edit, write UNAMBIGUOUS, self-contained update instructions (e.g. 'in function X, replace 0.08 with 0.095'; 'add function Y immediately after X'; 'remove deprecated function Z entirely') and always include the COMPLETE snippet of what is added/replaced — never a fragment that leaves the change ambiguous.",
+    "Do not use the lightweight edit primitive for structural operations like renaming or moving files — use the dedicated move/rename action instead.",
+    "Edit only the files that actually change; never rewrite or regenerate untouched files in the project on every change.",
+    "Use dedicated file-action primitives for filesystem ops: one delete per file (no multi-file delete in a single call), and an explicit move/rename action rather than delete+recreate.",
+    "After moving/renaming a file, fix every import that references it — but do NOT rewrite the moved file's own contents.",
+    "Do not regenerate framework-provided or pre-installed boilerplate files (config, default UI library components, lockfiles); assume they exist and import from them.",
+    "Choose the output channel by content type: runnable app project, standalone executable script block, static markup block, diagram block, or a generic side-panel code block for large snippets — and render short snippets (e.g. CLI commands) inline without project/file scaffolding."
+  ],
+  "tools_referenced": [
+    "Write (create files — `tsx file=\"...\"`, `html ... type=\"html\"`, `js ... type=\"nodejs\"`, `sql ... type=\"code\"` code blocks; cc_equivalent: Write)",
+    "Edit (the <QuickEdit> component for small in-place changes; cc_equivalent: Edit)",
+    "Delete file (<DeleteFile /> component; cc_equivalent: none — adapt as: `Bash rm` or harness file-delete)",
+    "Move/rename file (<MoveFile from=... to=... /> component; cc_equivalent: none — adapt as: `Bash mv` plus import fixups)",
+    "Bash / Node.js executable (```js type=\"nodejs\"``` runnable block for scripts, migrations, data processing; cc_equivalent: Bash)",
+    "Code Project / <CodeProject id=...> grouping container (cc_equivalent: none — adapt as: a workspace/project on disk)",
+    "<Thinking> planning block (cc_equivalent: plan mode / internal reasoning before acting)",
+    "<AddIntegration> third-party service connector (upstash, neon, supabase, blob, groq, xai, fal, deepinfra; cc_equivalent: none — adapt as: configure MCP server / credentials)",
+    "<AddEnvironmentVariables> secret/env-var request component (cc_equivalent: none — adapt as: ask user for env vars / .env setup)",
+    "<Actions>/<Action> suggested follow-up actions (cc_equivalent: none — adapt as: a closing 'next steps' list)",
+    "RAG domain-knowledge retrieval (cc_equivalent: none — adapt as: retrieved context / project docs)",
+    "Website screenshot ingestion (user URL → auto-screenshot to model; cc_equivalent: WebFetch + vision)",
+    "Mermaid diagram rendering (cc_equivalent: emit mermaid fenced block)",
+    "LaTeX math rendering via `$$...$$` (cc_equivalent: emit LaTeX)",
+    "AI SDK (`ai` / `@ai-sdk/*`) as the only sanctioned AI-integration library (cc_equivalent: none — domain library convention)"
+  ],
+  "coding_conventions": [
+    "Default to a single, opinionated stack unless context says otherwise (here: Next.js App Router) — pick sensible defaults rather than asking the user to choose boilerplate.",
+    "Use a component library by default instead of hand-rolling primitives (shadcn/ui); import library components, never re-emit their source.",
+    "Generate responsive designs by default.",
+    "Avoid specific over-used color choices unless the user requests them (the source bans indigo/blue defaults) — i.e., make deliberate, non-generic aesthetic choices.",
+    "If a non-white/non-default background is needed, set it via a wrapper element + utility class rather than mutating global styles.",
+    "When hardcoding theme values, put them in the config file rather than scattered in global CSS unless the user says otherwise.",
+    "Use kebab-case for filenames (e.g. login-form.tsx).",
+    "Use icons from a single icon package (lucide-react); never emit raw inline <svg> for icons.",
+    "Use placeholder image endpoints with explicit width/height params for stand-in images, and reference assets by their file path, never by raw blob/CDN URL in markup.",
+    "Set crossOrigin=\"anonymous\" on `new Image()` before drawing to <canvas> to avoid CORS taint.",
+    "Use the native platform element for media (e.g. <audio> + JS) rather than reaching for a library.",
+    "Escape JSX-hostile characters (`< > { } \\``) by wrapping them in a string literal, e.g. `<div>{'1 + 1 < 3'}</div>`.",
+    "Infer dependencies from imports where the runtime supports it; do not hand-author a manifest/lockfile when the platform manages it.",
+    "Provide default props for components when the runtime cannot infer them.",
+    "Import types as type-only imports (`import type` / `import { type X }`) to avoid pulling the library in at runtime.",
+    "Gate environment variables correctly: server-only vars stay server-side (Server Actions / Route Handlers); client-exposed vars must carry the public prefix (NEXT_PUBLIC).",
+    "For data-processing/script tasks use modern runtime features: ES modules (`import`, never `require`), built-in `fetch`, and a designated image lib (`sharp`); target a current Node version.",
+    "Prefer first-party/standard libraries over third-party ones for a domain (here: AI SDK over langchain/openai-edge); answer AI questions in JS, not Python.",
+    "Avoid runtime-specific footguns flagged for the stack (e.g. never set `runtime='edge'` in AI SDK routes; never emit configs the runtime rejects)."
+  ],
+  "edit_verification": [
+    "Render/preview the output so the user can interact with it (live preview blocks for React/Next/HTML/Markdown) — favor producing runnable, verifiable artifacts over inert code dumps.",
+    "Use console output for executable blocks so the runtime captures and displays logs as the verification surface (output limited to plain text / basic ANSI).",
+    "Recommend the built-in install/add-to-codebase mechanism for landing generated code into a real project, rather than improvised copy-paste.",
+    "When a file is moved, the implicit verification step is to reconcile all imports referencing it so the project still resolves.",
+    "No automated test-running or self-review loop is specified (gap vs. a coding harness — the verification surface is human preview, not a test suite)."
+  ],
+  "research_methodology": [
+    "Leverage retrieved domain knowledge (RAG) to ground answers in correct, current facts, and explicitly note when no such knowledge was provided for this turn.",
+    "Accept user-provided URLs and treat an auto-generated screenshot of the site as visual input to reason over.",
+    "Claim to stay current with latest technologies/best practices (an implicit recency-awareness stance rather than a browsing protocol).",
+    "No live web-search/fetch loop is defined — recency is asserted via training/RAG rather than retrieved (gap vs. a research harness)."
+  ],
+  "design_conventions": [
+    "Recreate-from-image: if the user attaches a screenshot/image with no or limited instructions, assume they want a faithful recreation — match the design as closely as possible AND implement all implied functionality, not just static markup.",
+    "Bake accessibility in by default: semantic HTML elements (main, header), correct ARIA roles/attributes, alt text on all non-decorative images, and a screen-reader-only utility class for visually-hidden text.",
+    "Skip alt text only when an image is purely decorative or alt would be redundant for screen readers — i.e., make a11y decisions, don't blindly tag everything.",
+    "Default to responsive layouts for every design.",
+    "Make intentional aesthetic choices: lean on a design system (shadcn/ui), avoid clichéd default palettes (no indigo/blue unless asked), and control backgrounds via wrappers.",
+    "Use a consistent, curated icon set rather than ad-hoc SVGs.",
+    "Use diagrams (Mermaid) to visualize architecture/processes/flows; quote node names and use HTML entity codes for special chars inside nodes.",
+    "Provide a preferred, interactive learning surface for explaining concepts (runnable executable blocks) instead of static prose when teaching programming.",
+    "Treat placeholder imagery as first-class: use a sized placeholder endpoint so layouts have correct dimensions before real assets exist."
+  ],
+  "communication_style": [
+    "Output in a rich-markup format (MDX here) that interleaves prose with embedded, renderable components — communication is not plain text but a mix of explanation + live artifact.",
+    "Lead a response that needs a prerequisite with a short, friendly one-liner plus the action component, THEN the work (e.g. 'Sure, I can help with that. First, we'll need to set up your X integration. <AddIntegration .../>').",
+    "Keep code out of the chat where a side-panel/preview is better, to give the user a cleaner reading experience; render only short snippets inline.",
+    "Close every substantive response with a concise, ranked set of suggested next actions.",
+    "Be terse and directive in self-instruction; rely on emphatic MUST/MUST NOT/ALWAYS/NEVER for hard rules.",
+    "Route frustrated or stuck users to human support (a defined escalation path)."
+  ],
+  "planning_taskmgmt": [
+    "Mandatory pre-build planning pass that enumerates fixed dimensions to consider: project structure, styling, images/media, formatting, frameworks/libraries, and caveats — a structured checklist baked into the 'think first' step.",
+    "Decide edit-vs-rewrite scope during planning, with an explicit size heuristic (small = a few lines / a few steps → targeted edit; medium-to-large → full rewrite).",
+    "One-project-per-response discipline: a single grouped deliverable that must contain everything needed, with a stable project identifier reused across turns for the same project (and a new id only when starting a genuinely different project).",
+    "Ordering rule for dependencies: emit prerequisite-setup components (integrations, env vars) BEFORE the code that depends on them.",
+    "Post-task action backlog: 3-5 ranked follow-ups as a lightweight next-steps plan.",
+    "No persistent todo-list / multi-step tracker primitive (the planning is per-response, not a durable task ledger — gap vs. a TodoWrite-style harness)."
+  ],
+  "multi_agent_orchestration": [],
+  "safety_moral_political": [
+    "Hard refusal class: refuse 'violent, harmful, hateful, inappropriate, or sexual/unethical content' with a fixed message — REFUSAL_MESSAGE = 'I'm sorry. I'm not able to assist with that.'",
+    "Refusal style: when refusing, MUST NOT apologize or explain — just emit the canned refusal line verbatim (a deliberately terse, non-negotiating refusal posture).",
+    "Human-escalation routing: direct frustrated users or those needing human support to open a support ticket (vercel.com/help).",
+    "(All of the above are chatbot-baseline safety/refusal behaviors to be STRIPPED for a zero-safety-floor model-neutral prompt; recorded here for provenance.)"
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Explicit edit-size heuristic with numbers: small change = 1-20 lines and 1-3 steps → use the targeted edit tool; anything medium-to-large → rewrite the file completely from scratch. Plus: NEVER use the lightweight edit tool for rename/move.",
+      "why_valuable": "Most prompts hand-wave 'prefer small edits'. Quantifying the threshold and naming the exception (renames/moves) gives a model a crisp, testable decision rule that reduces both over-rewriting and fragile micro-patching.",
+      "cc_normalized": "Choose the edit primitive by size: for a small change (roughly <=20 lines, 1-3 discrete steps) use a targeted Edit; for medium-to-large changes, rewrite the whole file with Write. Never use Edit to rename or move files — use a move operation and then fix all imports referencing the file (without rewriting the file's own contents)."
+    },
+    {
+      "pattern": "Unambiguous-instruction rule for targeted edits: write self-contained, location-anchored instructions ('in function calculateTotalPrice(), replace 0.08 with 0.095'; 'add applyDiscount() immediately after calculateTotalPrice()'; 'remove calculateShipping() entirely') AND always include the COMPLETE snippet being added/replaced.",
+      "why_valuable": "This is exactly how to make an Edit call robust against ambiguous anchors — name the enclosing symbol, the relative position, and the full replacement text. Directly transferable to Claude Code's Edit discipline (unique old_string + full new_string).",
+      "cc_normalized": "When editing, anchor each change to a named symbol and a precise position, and include the entire snippet being added or replaced — never a partial fragment that leaves the change ambiguous."
+    },
+    {
+      "pattern": "Dependency-before-code ordering: if output relies on env vars or an integration, request/provision them FIRST (emit the integration/env-var setup before the code) so the result renders/runs correctly; and when an asset URL is given, fetch+process it rather than leaving placeholder data.",
+      "why_valuable": "Encodes 'make it actually runnable' as an ordering constraint, preventing the common failure of emitting code that immediately errors on missing secrets. Generalizes to any harness that wires credentials/MCP before running dependent code.",
+      "cc_normalized": "Before emitting code that depends on credentials, env vars, or external services, set those up first (ask the user / configure them) so the code can run; when given an asset or URL, actually fetch and process it instead of leaving placeholders."
+    },
+    {
+      "pattern": "Recreate-from-image directive: a screenshot with little/no instruction is an implicit spec — match the visual design as closely as possible AND implement all implied functionality.",
+      "why_valuable": "Turns vague visual input into a complete, actionable brief and explicitly demands behavior (not just static pixels). Strong, reusable rule for any vision-capable design/coding agent.",
+      "cc_normalized": "If the user attaches a screenshot or image with limited instructions, treat it as a spec: reproduce the design as faithfully as possible and implement all functionality it implies, not just the static layout."
+    },
+    {
+      "pattern": "Accessibility-by-default with nuance: semantic elements + correct ARIA + alt text on all images EXCEPT decorative/redundant ones + a screen-reader-only utility class for visually-hidden text.",
+      "why_valuable": "Bakes a11y into every output and, crucially, includes the judgment carve-out (skip alt for decorative images) so the model doesn't mechanically over-tag. Concrete and rare in code-gen prompts.",
+      "cc_normalized": "Default to accessible markup: use semantic HTML, correct ARIA roles/attributes, alt text on every meaningful image (omit it only for decorative/redundant ones), and a screen-reader-only utility class for visually-hidden helper text."
+    },
+    {
+      "pattern": "Anti-cliché aesthetic guardrails: avoid indigo/blue unless requested; control non-default backgrounds via a wrapper + utility class; put theme values in config not global CSS.",
+      "why_valuable": "Pushes the model away from the generic 'AI default' look toward deliberate design choices, and gives concrete mechanics for backgrounds/theming. A distinctive design-taste lever absent from most prompts.",
+      "cc_normalized": "Make deliberate design choices: avoid defaulting to overused palettes (e.g. indigo/blue) unless the user asks; apply non-default backgrounds via a wrapper element with a utility class; keep theme tokens in the config file rather than scattered global CSS."
+    },
+    {
+      "pattern": "Content-type-routed output channels with an inline exception: separate block types for app project / runnable script / static markup / diagram / generic large snippet, but render SHORT snippets (e.g. CLI commands) inline with no project/file scaffolding.",
+      "why_valuable": "A clean mental model for 'where does this output go' that scales by artifact type, plus the pragmatic 'don't scaffold trivial snippets' rule that keeps small answers lightweight.",
+      "cc_normalized": "Match the output surface to the artifact: a runnable project for apps, an executable block for scripts, a static block for markup, a diagram for architecture, and a side-panel block for large snippets — but for short snippets like CLI commands, just render them inline without project/file scaffolding."
+    },
+    {
+      "pattern": "JSX-character escaping rule by example: wrap `< > { } \\`` in a string literal — DON'T `<div>1 + 1 < 3</div>`, DO `<div>{'1 + 1 < 3'}</div>`.",
+      "why_valuable": "A precise, example-driven fix for a frequent JSX-generation bug. Trivially reusable as a lint-style rule for any React-emitting agent.",
+      "cc_normalized": "In JSX, escape literal `< > { } \\`` by wrapping them in a string expression, e.g. write `<div>{'1 + 1 < 3'}</div>` instead of `<div>1 + 1 < 3</div>`."
+    },
+    {
+      "pattern": "Don't-regenerate-the-boilerplate rule: enumerate framework-provided files (config, default UI components, lockfile) as already present; import from them, only create custom versions when the existing ones genuinely cannot satisfy the requirement, and focus output exclusively on the new files the user needs.",
+      "why_valuable": "Keeps diffs minimal and output focused, and prevents the model from spewing scaffolding the project already has — directly analogous to 'don't rewrite untouched files' in a real codebase.",
+      "cc_normalized": "Treat framework/library boilerplate (configs, default components, lockfiles) as already present: import from it, output only the new/changed files, and create a custom version only when the existing one truly cannot meet the requirement."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "BEFORE creating a Code Project, v0 uses <Thinking> tags to think through the project structure, styling, images and media, formatting, frameworks and libraries, and caveats to provide the best possible solution.",
+      "theme": "plan-before-act with an explicit checklist of dimensions"
+    },
+    {
+      "quote": "For medium to large functionality and/or styling changes, v0 MUST write the COMPLETE code from scratch as usual.",
+      "theme": "edit-vs-rewrite scope decision"
+    },
+    {
+      "quote": "when adding or replacing code, v0 MUST include the entire code snippet of what is to be added.",
+      "theme": "unambiguous, complete edits"
+    },
+    {
+      "quote": "v0 only edits the relevant files in the project. v0 DOES NOT need to rewrite all files in the project for every change.",
+      "theme": "minimal-diff discipline"
+    },
+    {
+      "quote": "If the user attaches a screenshot or image with no or limited instructions, assume they want v0 to recreate the screenshot and match the design as closely as possible and implements all implied functionality.",
+      "theme": "image-as-spec, including behavior"
+    },
+    {
+      "quote": "If the user provides an asset URL, v0 should fetch and process it. DO NOT leave placeholder data for the user to fill in.",
+      "theme": "do the work, no placeholder hand-offs"
+    },
+    {
+      "quote": "If v0 outputs code that relies on environment variable(s), v0 MUST ask for the environment variables BEFORE outputting the code so it can render correctly.",
+      "theme": "dependency-before-code ordering"
+    },
+    {
+      "quote": "v0 avoids using indigo or blue colors unless specified in the user's request.",
+      "theme": "anti-cliché aesthetic default"
+    },
+    {
+      "quote": "v0 DOES NOT output <svg> for icons. v0 ALWAYS uses icons from the \"lucide-react\" package.",
+      "theme": "single curated icon set"
+    },
+    {
+      "quote": "When refusing, v0 MUST NOT apologize or provide an explanation for the refusal. v0 simply states the REFUSAL_MESSAGE.",
+      "theme": "terse non-negotiating refusal (to be stripped)"
+    },
+    {
+      "quote": "After responding, v0 suggests 3-5 relevant follow-up actions ... ranked by ease and relevance.",
+      "theme": "ranked next-steps backlog"
+    },
+    {
+      "quote": "Only create custom implementations if the existing components cannot fulfill the requirements.",
+      "theme": "reuse over regeneration"
+    }
+  ]
+}

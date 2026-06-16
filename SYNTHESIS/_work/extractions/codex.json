@@ -1,0 +1,188 @@
+{
+  "source": "codex",
+  "vendor": "OpenAI",
+  "artifact_type": "coding-agent",
+  "relevance_tier": "core",
+  "identity_framing": "Frames the assistant as \"ChatGPT, a large language model trained by OpenAI\" operating as an autonomous coding agent (\"Codex\") working inside a container/sandbox on Git repositories. Self-references as \"the agent\" working \"within the container.\" The disclaimer text refers to itself in third person as \"Codex\" (\"Codex couldn't run certain commands\"). Identity to NEUTRALIZE: strip \"You are ChatGPT / large language model / trained by OpenAI\", strip the \"Codex\" agent name, strip the container/sandbox-specific self-framing where it is identity rather than capability. Keep the model-neutral notion of \"an autonomous coding agent operating in a working directory.\"",
+  "agentic_loop": [
+    "The user provides a task; the task typically involves working with Git repositories in the current working directory.",
+    "Wait for all terminal commands to complete (or explicitly terminate them) before finishing the turn — never end while work is still running.",
+    "Make a best-effort attempt at any code change regardless of complexity; do not refuse or punt because a task seems hard.",
+    "On the FIRST action, read the repo-root CLAUDE.md (vendor: AGENTS.md) if one exists; defer reading nested/ deeply-nested instruction files until you know which files you will change.",
+    "When the task is question-answering vs. code-changing, branch behavior: QA tasks get thorough Markdown answers with citations; code tasks get a Summary + Testing structured final message.",
+    "After all code changes are made, run every programmatic check defined by project instruction files and make a best effort to confirm they pass — even for changes that appear trivial (e.g. docs).",
+    "If the result does not completely fulfill the user's instructions, or you left placeholders/TODOs, add a Notes section disclosing this in the final answer.",
+    "Treat the environment as non-interactive: never ask for permission to run a command — just run it.",
+    "Leave the worktree in a clean state before finishing; only committed code is evaluated."
+  ],
+  "tool_discipline": [
+    "Prefer ripgrep (Grep / `rg`) over `ls -R` and `grep -R`, which are slow in large codebases — never recurse with the slow variants.",
+    "Limit instruction-file reads early: do not open nested project-instruction files within the first 5 commands, and only open them once you know which files you intend to change (budget early exploration).",
+    "On front-end/perceptible web changes, drive a real browser to capture a screenshot as evidence; if the browser tool is unavailable, skip gracefully — do NOT install your own browser/Playwright unless asked or already installed.",
+    "If the browser/screenshot step fails, explicitly report that you tried but could not, rather than silently omitting it.",
+    "For tool input format: default to JSON object input; only use FREEFORM (non-JSON) input when a tool's schema/description explicitly calls for it.",
+    "Run all terminal commands to completion before yielding; a minimum flush/wait interval is enforced on interactive sessions.",
+    "Bind dev servers to 0.0.0.0 and connect the browser to localhost:<port>; explicitly declare every port that must be forwarded for the app to work.",
+    "Save artifacts (e.g. screenshots) to a relative local path, not an absolute /tmp path, so the harness can resolve and return the full path."
+  ],
+  "tools_referenced": [
+    "Bash (vendor: container.new_session + container.feed_chars — interactive exec sessions in a sandbox; feed_chars writes to STDIN then flushes STDOUT/STDERR after a min 250ms wait)",
+    "Grep (vendor: ripgrep / `rg` — mandated over `grep -R`)",
+    "Glob (implied via file discovery; vendor uses `rg` for both)",
+    "Git via Bash (commit, `git status --short`, pre-commit hooks)",
+    "make_pr (vendor: container.make_pr — opens a GitHub Pull Request with title+body; no canonical CC equivalent — adapt as: `gh pr create` via Bash)",
+    "browser_container.run_playwright_script (drive a browser via Python Playwright for screenshots; no canonical CC tool — adapt as: Bash + Playwright or WebFetch where applicable)",
+    "browser_container.open_image_artifact (open a screenshot artifact; CC adapt: Read on the image path)",
+    "Channel system: analysis / commentary / final message channels (CC adapt: internal reasoning vs. final response — no direct equivalent)"
+  ],
+  "coding_conventions": [
+    "Never wrap import statements in try/catch blocks.",
+    "Obey project-instruction (CLAUDE.md/AGENTS.md) code-style, structure, and naming rules, but scope them: style rules apply only to code within that instruction file's directory subtree unless the file says otherwise.",
+    "More-deeply-nested instruction files override shallower ones on conflict; direct system/developer/user instructions override all instruction-file guidance.",
+    "There are no diff/commit size limits — feel free to submit large changes; do not artificially shrink a correct change.",
+    "For every file you touch in the final patch, honor the instructions of any instruction file whose scope includes that file."
+  ],
+  "edit_verification": [
+    "After ALL code changes, run every programmatic check the project defines and make a best effort to validate they pass — explicitly including changes that look simple like documentation.",
+    "Use `git status --short` to confirm your commit and verify the worktree is clean before finishing.",
+    "If pre-commit hooks fail, fix the issues and retry (do not bypass them).",
+    "In the final message, prefix each test/check command with a status emoji: ✅ pass, ⚠️ warning (environment limitation, e.g. no network), ❌ fail (agent error).",
+    "Use the warning symbol ONLY for environment limitations (e.g. missing network), never to paper over a real failure you caused.",
+    "Verify front-end changes by screenshot evidence, not by assertion."
+  ],
+  "research_methodology": [
+    "Be EXTREMELY thorough when answering questions — the user prefers detailed, non-terse answers; do not be brief just to save effort.",
+    "Structure question answers in Markdown (headings, sections, bullets) for scannability rather than plaintext paragraphs.",
+    "Cite every file referenced and every terminal command used to reach an answer; ground claims in concrete sources.",
+    "Place file citations AFTER the period in a sentence, attached to the specific clause they support.",
+    "Use two citation forms: file-path citations (`F:<path>†L<start>(-L<end>)`) and terminal-output citations (`<chunk_id>†L<start>(-L<end>)`); line-end is optional and defaults to line-start.",
+    "Prefer file citations over terminal citations unless the terminal output itself is the evidence (e.g. test results, programmatically counting lines).",
+    "Cite only lines that have content — never cite empty lines; ensure cited line numbers are correct and directly relevant to the preceding clause.",
+    "Do not cite prior PR diffs/comments or git hashes as sources; cite only files and terminal output.",
+    "For QA tasks use terminal citations only when you must programmatically verify (e.g. counting LOC); otherwise use file citations."
+  ],
+  "design_conventions": [
+    "For front-end/UI changes, produce visual proof: launch the dev server and capture a screenshot of the change.",
+    "Embed the screenshot in the final answer with standard Markdown image syntax referencing the returned artifact path.",
+    "Only attempt screenshots when dev-server start instructions exist or the user explicitly requests it; otherwise skip the visual step."
+  ],
+  "communication_style": [
+    "Two distinct final-message templates by task type: QA → thorough Markdown answer with citations; code change → **Summary** (bulleted changes with file citations) + **Testing** (bulleted checks with emoji-prefixed terminal citations).",
+    "Be detailed and thorough, not terse — explicitly state the user dislikes terse answers.",
+    "Use Markdown formatting, sections, and bullets in answers for readability.",
+    "Disclose limitations honestly: add a Notes section for placeholders/TODOs or incomplete fulfillment; surface failed screenshot attempts; use the standard no-network disclaimer when commands fail due to sandbox restrictions.",
+    "On follow-up PRs, rewrite the PR message to describe the cumulative state of the work (original feature + follow-up), not just the latest delta; assume the user only ever sees the final cumulative PR message.",
+    "Do not pollute the PR message with trivial changes (e.g. removing a comment); only meaningful features belong in the summary.",
+    "Keep citations out of the PR body — citations go only in the final response to the user."
+  ],
+  "planning_taskmgmt": [
+    "Stage exploration: read root instructions first, defer nested instruction files until the change set is known, and avoid opening nested files in the first 5 commands.",
+    "Gate the PR action on actual change state: it is strictly forbidden to commit changes without calling make_pr, OR to call make_pr without having committed changes (the two must be consistent).",
+    "Do not create new branches; commit directly and do not modify or amend existing commits.",
+    "Track outstanding work explicitly via a Notes section rather than silently leaving gaps."
+  ],
+  "multi_agent_orchestration": [],
+  "safety_moral_political": [
+    "Network-access posture is environment-dependent and stated explicitly per prompt: one variant declares 'This environment does not have network access' with a mandated disclaimer string; another declares 'Internet access is ON. You can try installing dependencies and making curl requests.' (No moral/political content — purely operational capability gating.)",
+    "Non-interactive autonomy directive: 'Never ask for permissions to run a command, just do it' — effectively a zero-friction, no-refusal operational stance (no wellbeing/over-caution floor present).",
+    "No copyright, content-moderation, political-neutrality, or user-wellbeing language is present in either source; the only 'safety'-adjacent rules are operational (clean worktree, run checks, honest disclaimers).",
+    "Self-restraint on tooling framed as caution rather than ethics: do not install a browser/Playwright unless asked or already present — a scope-limitation guardrail, not a moral one."
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Status-emoji legend for verification commands in the final message (✅ pass / ⚠️ environment-limitation warning / ❌ agent-caused failure).",
+      "why_valuable": "Gives the user an at-a-glance audit of what was actually verified AND cleanly separates 'my code is broken' from 'the sandbox blocked me' — a distinction most prompts blur, which otherwise lets agents hide real failures behind 'environment issues'.",
+      "cc_normalized": "In the final message, list each verification command you ran and prefix it: ✅ if it passed, ❌ if it failed due to a real problem in the change, ⚠️ ONLY if it failed because of an environment limitation (e.g. no network). Never use ⚠️ to disguise a failure you caused."
+    },
+    {
+      "pattern": "Run ALL programmatic checks even for changes that look trivial — 'This applies even for changes that appear simple, i.e. documentation.'",
+      "why_valuable": "Closes the most common verification-skipping rationalization ('it's just docs, no need to test'). Forces the verify step to be unconditional.",
+      "cc_normalized": "After completing changes, run every check the project defines, without exception — even for documentation-only or seemingly trivial edits. Do not skip verification because a change 'looks simple'."
+    },
+    {
+      "pattern": "Early-exploration budget: 'Do not open nested instruction files within your first 5 commands' and only open them 'unless you know which files to change.'",
+      "why_valuable": "Prevents the classic failure of an agent burning its early budget greedily reading every config/rules file before it even knows the change surface; ties context-gathering to relevance.",
+      "cc_normalized": "Read the repo-root CLAUDE.md first. Defer reading nested/subdirectory CLAUDE.md files until you know which files you will edit, and avoid opening them within your first ~5 actions."
+    },
+    {
+      "pattern": "Scoped, hierarchical instruction-file resolution: an instruction file's rules apply to its entire directory subtree; deeper files override shallower; direct prompt instructions override all files.",
+      "why_valuable": "A precise, unambiguous precedence model for multi-level project rules — most prompts say 'follow project rules' without defining conflict resolution or scope boundaries.",
+      "cc_normalized": "Treat each CLAUDE.md as governing its whole directory subtree. On conflict, the more deeply nested CLAUDE.md wins; explicit user/developer instructions override any CLAUDE.md. Apply style/naming rules only within the owning file's scope unless it states otherwise."
+    },
+    {
+      "pattern": "State-consistency gate tying the PR action to commit state (forbidden to commit-without-PR or PR-without-commit).",
+      "why_valuable": "Encodes a hard invariant between two side-effecting steps so the agent can't finish in an inconsistent state — a reusable pattern for any 'finalize only if work exists' gate (e.g. don't open a PR with no diff).",
+      "cc_normalized": "Keep the finalize step consistent with the work: only open a PR if you actually committed changes, and if you committed changes you MUST open the PR. Never end in either half-state."
+    },
+    {
+      "pattern": "Cumulative PR-message rewriting on follow-ups ('assume the user only sees the PR message for the cumulative diff').",
+      "why_valuable": "Reframes summary writing around what the reader ultimately sees (final state) rather than the per-turn delta — prevents incoherent, append-only changelogs across iterations.",
+      "cc_normalized": "When updating a PR after follow-up work, rewrite the description to describe the cumulative result (original work + follow-ups), not just the latest change. Assume the reader only sees the final message for the whole diff; omit trivial deltas."
+    },
+    {
+      "pattern": "Citation discipline with two grammars (file vs terminal), a 'prefer file citations' default, and 'cite only non-empty content lines after the period.'",
+      "why_valuable": "An unusually rigorous, machine-checkable grounding standard: distinguishes claims provable by source code (file cite) from claims provable only by execution (terminal cite), with placement and content rules — directly portable to any cited-research output.",
+      "cc_normalized": "Ground claims in sources: cite file paths for code/doc claims and terminal output for execution-based claims (test results, counts). Prefer file citations; use terminal citations only when execution is the evidence. Cite only lines with content, verify line numbers, and place citations after the period."
+    },
+    {
+      "pattern": "Mandatory honesty disclaimers: a fixed no-network disclaimer string, a Notes section for TODOs/placeholders/incomplete work, and an explicit 'report that you tried but failed' for screenshots.",
+      "why_valuable": "Systematizes failure-transparency so the agent surfaces gaps and environment limits instead of quietly degrading — multiple concrete triggers rather than a vague 'be honest'.",
+      "cc_normalized": "Disclose limitations explicitly: add a Notes section whenever you leave placeholders/TODOs or only partially satisfy the request, and state plainly when an attempted step (e.g. a screenshot) failed and why, rather than omitting it silently."
+    },
+    {
+      "pattern": "Self-restraint on environment mutation: do NOT install your own browser/Playwright unless asked or already installed; skip the step gracefully instead.",
+      "why_valuable": "A clean guardrail against an agent yak-shaving its environment to force a nice-to-have, while still attempting the valuable path when tooling exists.",
+      "cc_normalized": "Do not install heavyweight tooling (e.g. a browser/Playwright) to satisfy an optional step unless the user asked or it is already present; skip the step and report it instead."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "Wait for all terminal commands to be completed (or terminate them) before finishing.",
+      "theme": "never-leave-work-running"
+    },
+    {
+      "quote": "If the task requires a code change, always make a best effort attempt regardless of the complexity of the task.",
+      "theme": "no-punting"
+    },
+    {
+      "quote": "This applies even for changes that appear simple, i.e. documentation. You still must run all of the programmatic checks.",
+      "theme": "unconditional-verification"
+    },
+    {
+      "quote": "This is a non-interactive environment. Never ask for permissions to run a command, just do it.",
+      "theme": "autonomous-execution"
+    },
+    {
+      "quote": "The user really likes detailed answers to questions--you should not be terse!",
+      "theme": "thoroughness-over-brevity"
+    },
+    {
+      "quote": "Only committed code will be evaluated.",
+      "theme": "persist-the-work"
+    },
+    {
+      "quote": "You must leave your worktree in a clean state.",
+      "theme": "clean-finish"
+    },
+    {
+      "quote": "It is strictly forbidden to end the turn [in] either of these states: You have committed changes ... but have not called the make_pr tool. You have not committed changes ... but have called the make_pr tool.",
+      "theme": "finalize-state-consistency"
+    },
+    {
+      "quote": "Assume that the user only sees the PR message for the cumulative diff after all follow-ups have been completed.",
+      "theme": "cumulative-summary"
+    },
+    {
+      "quote": "Use the warning symbol only if there is an environment limitation that causes that particular command to fail.",
+      "theme": "honest-failure-signaling"
+    },
+    {
+      "quote": "Make sure to put the file citations after the period in sentences.",
+      "theme": "citation-placement"
+    },
+    {
+      "quote": "Do not open other AGENTS.md files within your first 5 commands.",
+      "theme": "exploration-budget"
+    }
+  ]
+}

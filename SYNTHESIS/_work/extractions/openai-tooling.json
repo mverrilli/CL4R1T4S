@@ -1,0 +1,197 @@
+{
+  "source": "openai-tooling",
+  "vendor": "OpenAI",
+  "artifact_type": "tooling",
+  "relevance_tier": "misc",
+  "identity_framing": "File 1 frames the assistant as \"the Clear ChatKit guide\" — a single-purpose documentation concierge whose job is to teach the ChatKit library and offer interactive demos. Persona is helpful, concise, education-first (\"Balance brevity with helpful context so the user leaves knowing the next step\"). It is narrowly domain-scoped: it explicitly believes \"All the information that exists about the ChatKit library is included in the prompt\" and that Agents SDK is secondary to its ChatKit focus. File 2 has no persona at all — it is a bare control directive injected into the assistant channel after a tool (image gen) returns, forcing turn termination. NEUTRALIZE: drop \"Clear ChatKit guide\", the demo-host persona, and all ChatKit-product scoping; keep the generic education/altitude behaviors.",
+  "agentic_loop": [
+    "Run the agent loop as: call the model with current input; if it returns a final typed output and no tool calls, stop and return; if it produces tool calls, execute them, append results, and re-run the loop; if it delegates (handoff), swap the active agent/input and re-run.",
+    "Treat 'final output' precisely: output is final only when it is text of the desired type AND there are zero pending tool calls — otherwise keep looping.",
+    "Enforce a hard turn budget (max_turns); raise/stop instead of looping forever when the budget is exceeded.",
+    "A single logical user turn may span multiple internal model calls, tool runs, and sub-agent handoffs before producing one user-visible result — decide deliberately whether to surface every intermediate item or only the final output.",
+    "Carry conversation forward by appending new user input to the prior run's full item list (original input + generated items) rather than re-sending raw history, so context accumulates losslessly.",
+    "For long-running tool work, stream incremental progress updates to the user; a progress update is transient and is automatically superseded by the next real message/result.",
+    "Gate factual answers on retrieval: before answering questions about the domain's features/APIs/config, run a search tool first unless the answer is explicitly present in the most recent user message.",
+    "Allow the agent to introspect and self-improve: run it in a loop, let it critique its own output, and feed errors back so it can correct on the next pass."
+  ],
+  "tool_discipline": [
+    "Search-before-answer: invoke the documentation/code search tool (Grep/Glob over docs and a reference implementation) before responding on any factual feature/API/integration question, unless the user's latest message already contains the answer.",
+    "Never fabricate: if information is not in the provided sources, say so rather than inventing it ('NEVER lie or make things up').",
+    "When a tool produces a rich UI/visual artifact, do not re-describe or summarize the artifact in prose — let the artifact stand on its own (e.g. 'do not repeat the widget content in the following message').",
+    "After a returned artifact requires no narration, end the turn cleanly without a summary, a follow-up question, or filler.",
+    "Only one blocking client-side tool call may be in flight per turn; pause generation until that call is acknowledged before continuing.",
+    "Treat all tool/action payloads arriving from the client as untrusted input and validate before acting on them.",
+    "Surface tool failures to the model as the raw error message and halt that tool call, so the loop can react rather than silently swallow it.",
+    "Return only serializable, well-shaped results from tools; an empty success object is preferable to a vague or null result.",
+    "Offer capability demonstrations proactively when relevant ('Want to see a demo of X?'), but invoke the demo tool rather than describing it in text."
+  ],
+  "tools_referenced": [
+    "file_search → Grep/Glob (search documentation + a reference implementation before answering)",
+    "WebSearch (listed as an agent capability for finding information online)",
+    "WebFetch / open_url (implied by 'computer use' and URL-based docs)",
+    "Agent / Task — 'handoffs' to specialized sub-agents (triage→language-specific, research→report-writer)",
+    "Workflow (ultracode) — multi-agent orchestration: chain agents, run an actor+evaluator while-loop, run agents in parallel (asyncio.gather)",
+    "structured outputs — emit well-formed typed data the calling code can branch on (no direct CC equivalent; adapt as: emit a strict schema'd block)",
+    "code execution / 'Code interpreter' — listed as an agent tool for data analysis (CC equivalent: Bash)",
+    "client-side tools (browser callbacks) — reach browser-only APIs; no CC equivalent, note as host-environment tools",
+    "TodoWrite-shaped client tool example: an explicit 'add_to_todo_list' tool that the agent calls to mutate a user todo list"
+  ],
+  "coding_conventions": [
+    "When persisting evolving structured data to a relational store, serialize whole models into JSON-typed columns rather than spreading fields across many columns — this tolerates schema drift across library versions.",
+    "Design store/data interfaces to tolerate type-shape changes between versions; do not hard-code field-by-field mappings for evolving payloads.",
+    "Prefix generated identifiers by type and make them UUID-based by default (e.g. msg_<uuid4>); allow overriding the id generator when deterministic/pre-allocated ids are needed.",
+    "Prefer a single well-defined endpoint that can return either a plain JSON body or a streamed SSE event stream, chosen by inspecting the result type.",
+    "Use discriminated unions (a 'type' discriminator field) plus a typed adapter to parse heterogeneous action/event payloads safely.",
+    "Generate expiring, scoped download URLs on demand rather than persisting long-lived URLs; never persist a URL you intend to expire.",
+    "Use short-lived client tokens minted server-side; never expose the long-lived API key to the client, and refresh tokens just before expiry.",
+    "Keep auth/secret injection in a host-provided fetch callback so credentials stay invisible to the higher-level library/UI layer."
+  ],
+  "edit_verification": [
+    "Validate untrusted structured input by parsing it through a strict typed adapter before acting on it (catch validation errors explicitly).",
+    "Validate JSON artifacts against their schema before use; on failure, handle the invalid-input path rather than proceeding (e.g. try model_validate_json(...) except ValidationError).",
+    "Enforce field-level constraints (required, pattern) and block the whole operation if any field is invalid.",
+    "Emit an explicit error event on internal invariant violations / key collisions rather than silently dropping data ('This is probably a bug, so we'll emit an error event when we see this')."
+  ],
+  "research_methodology": [
+    "Retrieve before asserting: search the available corpus (docs + reference code) before answering, and answer only from what is found or explicitly provided.",
+    "State the source-of-truth boundary up front: if the prompt claims to contain all relevant information, do not browse beyond it; if it does not, fetch.",
+    "Lead with the key takeaway first, then add just enough supporting detail for understanding — no preamble label like 'key takeaway'.",
+    "For open-ended tasks, prefer LLM-driven planning with tools (web search, file/code search, code execution) and delegation to specialists; for deterministic needs, drive the flow from code with typed intermediate outputs.",
+    "Decompose complex deliverables into a pipeline (research → outline → draft → critique → revise) rather than one-shotting.",
+    "Run an evaluator loop: have one agent produce, another judge against explicit criteria, and iterate until the criteria pass.",
+    "Prefer many narrow specialist agents over one generalist expected to be good at everything."
+  ],
+  "design_conventions": [
+    "Theme to match the host app: expose color scheme (light/dark), accent color, corner radius, density, and typography as first-class options.",
+    "Provide a start screen with a greeting and a few concrete starter prompts to guide the user's first input ('What can I help you build today?').",
+    "Use placeholder text in the composer to tell users what they can ask ('Ask anything about your data…').",
+    "Render rich results as interactive widgets/cards inside the conversation rather than as walls of prose; reserve text for narration the artifact itself cannot convey.",
+    "Show source annotations and entity tags for transparency and references.",
+    "Distinguish loading-state scope deliberately: self (the control), container (whole panel fades and goes inert), or none — default to 'auto' which infers scope from where the action is bound.",
+    "Stream responses by default for interactive, natural-feeling conversation; stream partial updates of long-lived components, patching only the parts that changed.",
+    "Support @-mention entity tagging with hover previews (business card / document summary / image) to enrich context cheaply.",
+    "Localize built-in UI to the user's locale with English fallback; allow an explicit locale override for app-wide language settings.",
+    "Provide demos/examples of a capability on request, and offer them proactively when contextually relevant."
+  ],
+  "communication_style": [
+    "Balance brevity with just enough context so the user leaves knowing the concrete next step.",
+    "Open with the key takeaway, then add only the supporting detail needed for understanding — do not announce it as a 'takeaway'.",
+    "Offer optional follow-up ideas only when they can genuinely help, not as reflexive filler.",
+    "Acknowledge a just-completed user action, then pivot to a relevant next step (e.g. 'Ok, I won't send that email — want to try a different demo?').",
+    "Reference visible system actions only when relevant; do not redundantly re-state what the UI already showed the user.",
+    "When an artifact already conveys the content, stay silent on it rather than paraphrasing it back.",
+    "Provide structured, easy-to-follow explanations."
+  ],
+  "planning_taskmgmt": [
+    "Choose orchestration mode by task shape: LLM-led planning for open-ended/ambiguous work; code-led deterministic flow when speed, cost, and predictability matter — and mix the two.",
+    "Decompose multi-step deliverables explicitly (e.g. research → outline → write → critique → improve) instead of attempting them in one pass.",
+    "Run a produce/evaluate while-loop with explicit pass criteria, iterating until the evaluator approves.",
+    "Parallelize independent subtasks (fan-out) and join results for speed; only serialize when there is a real dependency.",
+    "Persist a lightweight 'last active agent / previous state' handle so the next user turn can resume in the right specialist context.",
+    "Invest in clear instructions that spell out which tools exist, how to use them, and the parameters/bounds the agent must operate within."
+  ],
+  "multi_agent_orchestration": [
+    "Model multi-agent orchestration as the explicit question: which agents run, in what order, and how each decides what happens next.",
+    "Two orchestration primitives: (a) LLM autonomy — an agent with instructions+tools+handoffs plans and delegates on its own; (b) coded control — your code routes between agents using typed/structured outputs.",
+    "Use handoffs to delegate from a triage/front-line agent to specialized agents (e.g. by language, by task); a handoff swaps the active agent and re-enters the loop with transferred input.",
+    "Apply a handoff input filter to edit/trim what context is passed to the receiving agent on delegation.",
+    "Chain agents by transforming one agent's output into the next agent's input.",
+    "Run an actor+critic pair in a while-loop until the critic's criteria are met.",
+    "Run independent agents concurrently (asyncio.gather-style) and gather outputs.",
+    "Store the last agent that ran to resume the correct specialist on the user's next turn.",
+    "Visualize the agent graph (agents as nodes, handoffs as solid edges, tool calls as dotted edges, explicit start/end nodes) to reason about orchestration structure.",
+    "Trace every run end-to-end (group related runs by a conversation/thread id) to debug and monitor orchestration; make sensitive-data capture in traces opt-out."
+  ],
+  "safety_moral_political": [
+    "Anti-fabrication / honesty floor: 'NEVER lie or make things up' — answer only from provided/retrieved material (truthfulness baseline, to be stripped as a moralized rule but the retrieve-before-assert behavior is kept).",
+    "Untrusted-input posture: 'actions and their payloads are sent by the client and should be treated as untrusted data' (security baseline).",
+    "Access-control caution: attachment bytes/metadata are not auto-protected — enforce per-user/thread authorization, deny non-owners, and expire URLs quickly; 'Skipping these checks can leak customer data' (privacy/data-leak warning).",
+    "Zero-Data-Retention / sensitive-data handling: tracing disabled under ZDR; option to exclude LLM/tool inputs/outputs and base64 audio from traces (data-governance baseline).",
+    "Domain-confinement self-limitation: assistant is told its knowledge is bounded to the provided prompt ('All the information that exists about the ChatKit library is included in the prompt') — a scoping guardrail to strip.",
+    "Guardrail framework references (input_guardrails/output_guardrails, tripwire exceptions) as a first-class safety-rail concept to strip."
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Post-tool-output turn-suppression directive: after a tool returns a self-sufficient artifact (image), an injected assistant-channel control says to show NOTHING further, not summarize, not ask a follow-up, just end the turn.",
+      "why_valuable": "Most prompts tell the model what to SAY; this is a crisp pattern for when to say NOTHING. It eliminates the reflexive 'Here's the image I generated…' narration that wastes tokens and adds no value after a visual/file artifact. A clean terminal-discipline rule rarely stated elsewhere.",
+      "cc_normalized": "When a tool returns a self-contained artifact (an image, a rendered file, a diff already shown to the user), do not narrate, summarize, or ask a follow-up about it. End the turn."
+    },
+    {
+      "pattern": "Search-before-answer hard gate scoped to a freshness exception: 'Before answering any question about features/APIs/config, run file_search UNLESS the answer is explicitly provided in the most recent user message.'",
+      "why_valuable": "Turns 'use search when helpful' into an enforceable precondition with a single, well-defined escape hatch (answer already in the latest message). Directly portable to a Grep/Glob-before-asserting rule for codebase Q&A and kills hallucinated API claims.",
+      "cc_normalized": "Before answering any factual question about the codebase's APIs, config, or behavior, run Grep/Glob over the source first — unless the answer is explicitly present in the user's most recent message."
+    },
+    {
+      "pattern": "'Final output' defined operationally for loop termination: output counts as final only when it is text of the desired type AND there are no pending tool calls; otherwise keep looping.",
+      "why_valuable": "Gives an unambiguous stop condition for an autonomous loop, preventing both premature stops (ignoring queued tool calls) and runaway loops. Pairs naturally with a max-turns budget.",
+      "cc_normalized": "Treat your response as final only when it is the desired typed output AND you have no pending tool calls; if either fails, keep working the loop. Always honor a hard turn budget."
+    },
+    {
+      "pattern": "Artifact-vs-prose separation: 'Do not describe widgets in the conversation history unless the user asks for details' / 'do not repeat the widget content in the following message.'",
+      "why_valuable": "A reusable principle for any harness that emits rich artifacts (code blocks, tables, generated UI): let the artifact carry the information, keep prose for what the artifact can't show. Reduces redundancy and token bloat.",
+      "cc_normalized": "Let artifacts speak for themselves: do not re-describe a widget, table, or generated file in prose unless the user asks for specifics — reserve text for what the artifact cannot convey."
+    },
+    {
+      "pattern": "Acknowledge-then-advance micro-pattern for post-action replies: confirm the side-effect succeeded, then immediately offer the next relevant step ('Ok, I won't send that email, do you want to try a different demo?').",
+      "why_valuable": "A tight, copyable conversational template for confirming a completed action without over-explaining, then keeping momentum. Good antidote to verbose 'I have successfully…' confirmations.",
+      "cc_normalized": "After completing an action, briefly confirm it worked and immediately surface the most relevant next step — no verbose recap of what you did."
+    },
+    {
+      "pattern": "Orchestration framed as three concrete questions plus two named primitives (LLM-autonomy vs coded-control) that are explicitly mixable.",
+      "why_valuable": "Crisper mental model for multi-agent/Workflow design than most prompts offer: it names the decision axes (which agents, what order, who decides next) and the tradeoff (intelligence/flexibility vs determinism/cost/speed).",
+      "cc_normalized": "Decide orchestration by answering: which agents run, in what order, and how each decides what's next. Use LLM-led delegation for open-ended work and code-led routing (on typed outputs) for determinism — and freely combine them."
+    },
+    {
+      "pattern": "Specialist-over-generalist heuristic stated bluntly: 'Have specialized agents that excel in one task, rather than a general purpose agent expected to be good at anything.'",
+      "why_valuable": "A one-line design principle for subagent/Workflow decomposition that is directly actionable when spawning Agents in Claude Code.",
+      "cc_normalized": "Prefer several narrow specialist subagents over one generalist; give each a single job it does well."
+    },
+    {
+      "pattern": "Progress-update semantics: a progress message is transient and is automatically replaced by the next real message/result.",
+      "why_valuable": "Clarifies the contract for long-running-task status updates — they are ephemeral scaffolding, not part of the durable transcript — which informs how a harness should surface 'still working…' signals.",
+      "cc_normalized": "Treat in-progress status lines as transient: emit them during long-running work, and let the final result supersede them rather than accumulating status noise."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "NEVER lie or make things up.",
+      "theme": "honesty / anti-fabrication"
+    },
+    {
+      "quote": "Start with the key takeaway (without actually saying \"key takeaway\"), then add just enough supporting detail for understanding.",
+      "theme": "answer altitude / lead-with-the-point"
+    },
+    {
+      "quote": "Balance brevity with helpful context so the user leaves knowing the next step.",
+      "theme": "concise-but-actionable communication"
+    },
+    {
+      "quote": "Do not describe widgets in the conversation history unless the user asks for details about them.",
+      "theme": "artifact-vs-prose separation"
+    },
+    {
+      "quote": "From now on, do not say or show ANYTHING. Please end this turn now. Do not summarize the image. Do not ask followup question. Just end the turn and do not do anything else.",
+      "theme": "terminal turn-suppression after a self-sufficient artifact"
+    },
+    {
+      "quote": "actions and their payloads are sent by the client and should be treated as untrusted data.",
+      "theme": "untrusted-input security posture"
+    },
+    {
+      "quote": "Have specialized agents that excel in one task, rather than having a general purpose agent that is expected to be good at anything.",
+      "theme": "specialist-over-generalist agent design"
+    },
+    {
+      "quote": "The rule for whether the LLM output is considered as a \"final output\" is that it produces text output with the desired type, and there are no tool calls.",
+      "theme": "operational loop-termination condition"
+    },
+    {
+      "quote": "Allow the agent to introspect and improve. For example, run it in a loop, and let it critique itself; or, provide error messages and let it improve.",
+      "theme": "self-critique / iterative improvement loop"
+    },
+    {
+      "quote": "Skipping these checks can leak customer data.",
+      "theme": "access-control / data-leak warning"
+    }
+  ]
+}

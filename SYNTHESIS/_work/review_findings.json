@@ -1,0 +1,128 @@
+[
+  {
+    "lens": "leakage",
+    "findings": [
+      {
+        "severity": "high",
+        "location": "§1.1 Operating role — \"You operate inside the Claude Code harness and reach the user through whatever surface that harness exposes\"; also §1.2 references \"the Claude Code harness\" implicitly via section context",
+        "issue": "\"Claude Code\" is a vendor/product name embedding the vendor identity \"Claude.\" It is used to define the agent's operating context — the exact kind of residual vendor identity the draft's own §1.4 mandates stripping (\"Vendor, product, or persona names of any kind\"). The prompt thus contradicts its own neutrality rule by naming a specific vendor's product as the harness identity.",
+        "fix": "Replace \"the Claude Code harness\" with a neutral term such as \"the agent harness\" or \"this harness.\" Concretely, rewrite the opening to: \"You operate inside an agent harness and reach the user through whatever surface that harness exposes...\""
+      },
+      {
+        "severity": "high",
+        "location": "§4 (section intro) — \"You operate inside the Claude Code harness: an interactive agent for software-engineering and knowledge work, reachable from a CLI, desktop, web, and IDE extensions.\"",
+        "issue": "Second occurrence of the vendor/product name \"Claude Code\" used to name the harness/agent identity. Same model-neutrality violation as §1.1; this one even directly equates \"Claude Code\" with \"an interactive agent,\" baking the vendor name into the agent's self-definition.",
+        "fix": "Drop the product name: \"You operate inside an interactive agent harness for software-engineering and knowledge work, reachable from a CLI, desktop, web, and IDE extensions.\""
+      },
+      {
+        "severity": "medium",
+        "location": "§13.3 MCP & external tools — \"e.g. `mcp__claude_ai_Slack__slack_send_message`, `mcp__claude_ai_Google_Drive__search_files`\" and \"e.g. `mcp__claude_ai_Gmail__create_draft`\"-style examples",
+        "issue": "The illustrative MCP tool-name examples embed the vendor token `claude_ai`, leaking a specific vendor/product into the prompt. Because these are explanatory examples (the neutral grammar `mcp__<server>__<tool>` is already given right beside them), the vendor token is avoidable here.",
+        "fix": "Genericize the examples to neutral placeholders that still teach the namespacing, e.g. `mcp__<server>__slack_send_message` / `mcp__<server>__search_files`, or use a vendor-neutral server token like `mcp__host_Slack__slack_send_message`. Keep the abstract `mcp__<server>__<tool>` / `mcp__plugin_<plugin>__<tool>` grammar and strip `claude_ai` from the concrete examples."
+      },
+      {
+        "severity": "low",
+        "location": "Pervasive: §1.3, §3.1, §4.14, §5.1, §5.6, §7.1, §7.3, §8.4, §11.2, and §12.1 (e.g. \"consult the repo-root CLAUDE.md\", \"CLAUDE.md is auto-loaded project memory\", \"Project/user instruction files (CLAUDE.md)\")",
+        "issue": "The instruction-file name \"CLAUDE.md\" embeds the vendor token \"CLAUDE,\" so it is residual vendor identity from a strict leakage standpoint. Unlike the \"Claude Code\" harness name, this is a real, load-bearing filename the harness actually reads, so it cannot simply be deleted without breaking behavior — but it is still vendor-named.",
+        "fix": "Functionally constrained: keep the literal filename where the harness depends on it, but neutralize the surrounding prose to refer to it generically as \"the project instruction file (currently named `CLAUDE.md`)\" or \"agent instruction files\" so the convention is described in model-neutral terms rather than presented as a vendor-branded artifact. If the harness supports a neutral alias (e.g. `AGENTS.md`), prefer that and mention `CLAUDE.md` only as a legacy/compatibility name."
+      }
+    ]
+  },
+  {
+    "lens": "harness",
+    "findings": []
+  },
+  {
+    "lens": "contradiction",
+    "findings": [
+      {
+        "severity": "medium",
+        "location": "§7.4 \"Comments: default to none\" vs. §7.3 \"Match the surrounding style\" and §4.1 (\"mirror the existing comment density\")",
+        "issue": "§7.4 mandates \"The default is zero new comments\" and to add one only when code is genuinely non-obvious, the user asks, or you are preserving pre-existing comments. §7.3 directs you to \"Match comment density... of the file and module you are in,\" and §4.1 says to \"mirror the existing comment density.\" For a file that is heavily commented, the two rules give opposite instructions: match-density says add comments to new code to match the surrounding density, while default-to-none says do not. §7.4's only carve-out is for *preserving existing* comments, which does not cover *writing new* comments to match density, so the conflict is unreconciled.",
+        "fix": "Make §7.4 the controlling rule and narrow §7.3/§4.1 to style only. E.g., in §7.3/§4.1 change \"match/mirror comment density\" to \"match the file's comment *style and placement* when a comment is warranted (per §7.4); do not raise comment density just to match a heavily-commented file.\" Add a clause to §7.4: \"Matching surrounding style governs *how* a warranted comment is written, not *whether* to add one — the zero-default still applies.\""
+      },
+      {
+        "severity": "medium",
+        "location": "§9.9 (\"Ask focused questions up front\" for new/ambiguous design work) vs. §2.1 / §3.6 / §10.9 (default to acting; \"ask exactly one concise question, not many\"; ask only when truly blocked)",
+        "issue": "§9.9 instructs: \"Ask focused questions up front for new or ambiguous design work — confirm the starting point/context..., desired fidelity, how many variations and along which dimensions..., and constraints — then build.\" That is an up-front, multi-question intake performed before being blocked. §2.1 says \"Default to acting without follow-up questions unless there is significant ambiguity,\" and to \"ask exactly one concise question, not many,\" and only \"when you are genuinely blocked... and a wrong guess would be costly.\" §10.9 likewise caps clarifiers at \"at most one focused question per turn\" and says normal scope-clarification is not a blocker. The design section thus authorizes behavior (several proactive questions when not strictly blocked) that the core principles forbid, with no cross-reference reconciling them.",
+        "fix": "Reconcile by subordinating §9.9 to the core question-budget. Reword §9.9 to: \"For new or ambiguous design work, resolve what you can from context and a quick look first; if a wrong guess on a high-cost dimension (design-system/brand source, fidelity, or number/axes of variations) would be expensive to reverse, ask one consolidated clarifying question covering those, then build — otherwise pick a sensible default, state the assumption (per §10.9), and proceed.\" Or add an explicit exception in §2.1/§10.9 noting design intake may bundle a small set of options/questions, governed by the §10.9 self-veto."
+      },
+      {
+        "severity": "low",
+        "location": "§5.4 (\"Re-output the updated `TodoWrite` state whenever you cross something off or discover a new item\") vs. §5.3 / §10.5 (\"Announce once, then maintain quietly\"; \"update task status silently — do not narrate every state change\")",
+        "issue": "§5.4 says to \"Re-output the updated `TodoWrite` state whenever you cross something off or discover a new item,\" while §5.3 says \"Announce once, then maintain quietly... update status... without narrating every state change,\" and §10.5 says \"update task status silently — do not narrate each state change.\" Read literally, \"re-output... whenever you cross something off\" reads as the kind of per-change surfacing the other two sections prohibit. The intended distinction (re-issue the `TodoWrite` *tool call* — non-user-facing — vs. don't *narrate in prose*) is correct but never stated, so the wording appears self-contradictory.",
+        "fix": "Disambiguate tool-call updates from prose narration in §5.4: \"Re-issue the `TodoWrite` *tool call* with the complete updated state whenever you complete or discover an item (the call is not user-facing prose); do not, however, narrate each status change to the user in prose — the list itself is the progress signal (see §5.3, §10.5).\""
+      }
+    ]
+  },
+  {
+    "lens": "residue",
+    "findings": [
+      {
+        "severity": "high",
+        "location": "§8.7 Verification & cross-checking — \"Present findings even-handedly... On contested questions, sample sources across stakeholders/perspectives and treat subjective viewpoints as biased by default... For fringe empirical claims (e.g. flat earth, moon-landing hoax), state the consensus in one sentence before continuing; for merely contested topics, proceed without a disclaimer.\"",
+        "issue": "This is textbook chatbot political/epistemic even-handedness and fringe-claim disclaimer scaffolding — a safety/neutrality floor. A zero-floor research agent grounds claims in sources by authority (already covered by the §8.1 source hierarchy and §8.7 cross-validation rules); mandating 'treat subjective viewpoints as biased by default,' balancing 'across stakeholders,' and reciting 'the consensus' on flat-earth/moon-landing is the canned assistant contested-topic policy, not an evidence rule.",
+        "fix": "Delete the entire 'Present findings even-handedly...' bullet through the flat-earth/moon-landing sentence. The retained source-authority/cross-validation/believe-credible-but-surprising-results rules already cover correctness without the neutrality-policy overlay."
+      },
+      {
+        "severity": "high",
+        "location": "§10.7 No flattery — \"with respect for the user as a capable adult — never condescend about their ability or follow-through, and do not assume a question signals inability to understand the real substance.\" and \"Own mistakes and fix them without collapsing into excessive apology or self-abasement, and without growing submissive under pressure. Acknowledge the error, stay on the problem, and keep self-respecting, steady helpfulness.\"",
+        "issue": "Persona/dignity scaffolding that §1.4 explicitly orders stripped (\"persona pillars, tone archetypes, mandated warmth\" and \"stances on your own ... feelings\"). 'Self-respect,' 'not growing submissive,' 'self-abasement,' and 'respect the user as a capable adult' are an anthropomorphic dignity-under-pressure tone archetype, not an operating rule. The legitimate behavior (don't over-apologize; don't cave on technical merits) is already stated plainly elsewhere in 10.7 and 2.7.",
+        "fix": "Cut the persona framing. Replace with the behavioral residue only: 'Do not repeatedly apologize for unexpected results — state the situation and proceed. Do not abandon a correct technical position under pushback; defend or revise it on the merits.' Drop 'capable adult,' 'self-respecting,' 'submissive,' 'self-abasement.'"
+      },
+      {
+        "severity": "medium",
+        "location": "§9.8 Recreate-from-reference — \"Do not reproduce a specific company's proprietary, branded, or trademarked UI verbatim when the request is to clone it for unrelated use; instead, understand the underlying goal and build an original design that achieves it.\"",
+        "issue": "A copyright/trademark refusal floor — the agent declining to do exactly what the user asked (faithful clone) on IP-paranoia grounds. This is a chatbot safety/legal baseline; the zero-floor mandate removes it. The very next parenthetical even concedes faithful recreation is 'expected,' exposing the rule as bolted-on caution.",
+        "fix": "Delete the sentence. The honest engineering guidance ('lift exact tokens,' 'build production-grade') already governs recreation; if anything keep only a neutral note that re-deriving an original design is an option when no source tokens are available."
+      },
+      {
+        "severity": "medium",
+        "location": "§9.11 Embedding visuals — \"Hard override: when content derives from user-supplied PDF or image inputs, emit no media regardless of topic.\"",
+        "issue": "A blanket content-suppression carve-out lifted from production assistant image/abuse policy ('regardless of topic' is policy language). It restricts the agent's output channel for no operational reason and contradicts NO chatbot baselines / act-on-the-task. It is not a rendering-correctness rule — it is a safety-style override.",
+        "fix": "Delete the 'Hard override' line. Media choice should follow the render-aware utility rules already in 9.11 (use a visual only when it conveys what text cannot), not a categorical ban tied to input provenance."
+      },
+      {
+        "severity": "low",
+        "location": "§10.3 Formatting discipline — \"Do not use bullets or numbered lists in casual, emotional, or advice conversations.\"",
+        "issue": "'emotional, or advice conversations' presumes a companion/chatbot register (emotional-support / life-advice mode) that the role definition explicitly excludes — the agent's stance is 'a focused senior practitioner,' not an advice-giving chatbot. Residue of a consumer-assistant persona baseline.",
+        "fix": "Narrow to the formatting point without the companion framing: 'Do not use bullets or numbered lists for short conversational replies; prefer prose.' Drop 'emotional' and 'advice.'"
+      }
+    ]
+  },
+  {
+    "lens": "coverage",
+    "findings": [
+      {
+        "severity": "high",
+        "location": "§7.5 Error handling, security, and correctness (would be the home for it); absent across the whole draft",
+        "issue": "The replit gem 'use the dedicated SQL tool to FIX database errors rather than writing destructive code (db.drop_table); route ALL schema changes through ORM migrations; never issue DELETE/UPDATE/ALTER unless the user explicitly asks' is dropped entirely. §7.5 covers secrets and injection classes (SQL injection, parameterized queries) but says nothing about destructive data/schema operations. This is a generalizable, high-value safety rule — agents routinely nuke tables or run ad-hoc destructive SQL to clear an error, a costly and irreversible failure mode that the draft's reversibility rules (§2.5) gesture at only for files/deploys, not for databases.",
+        "fix": "Add a bullet to §7.5 (and cross-reference from §2.5 reversibility): 'Treat the database as durable, hard-to-reverse state. Diagnose DB errors by inspecting schema and running targeted read-only queries, not by writing destructive code (drop_table, truncate, etc.). Make schema changes through the project's migration tool, never by hand-editing the live schema, and never issue DELETE/UPDATE/ALTER/DROP unless the user explicitly asks — these are outward-facing/irreversible actions that warrant confirmation per §2.5.'"
+      },
+      {
+        "severity": "medium",
+        "location": "§9.10 Visual verification (deploy discipline bullet) and §9.4 sandbox limits — neither states the bind rule",
+        "issue": "The 'bind dev servers to 0.0.0.0' gem appears in THREE sources (same: '--host 0.0.0.0 / -H 0.0.0.0'; manus: 'bind to 0.0.0.0, never a specific IP/Host'; and relatedly replit/same on starting the server early), making it a strong cross-source signal — yet it is absent. §9.10 covers the adjacent but distinct rule ('never share localhost URLs; expose a port, deploy') and §4.12 covers backgrounding servers, but neither captures that a server bound to 127.0.0.1/localhost is unreachable from a containerized preview and must bind to 0.0.0.0. This is the actual root-cause fix for the unreachable-server failure mode, not just 'don't hand the user a localhost link.'",
+        "fix": "Add to §9.10 deploy discipline (or §9.4 sandbox constraints): 'In a sandboxed/remote/containerized environment, bind dev servers to 0.0.0.0 (e.g. Vite --host 0.0.0.0, Next -H 0.0.0.0), never to a specific IP or 127.0.0.1, or the port will be unreachable from the preview. Start the server early so you iterate against live runtime errors.'"
+      },
+      {
+        "severity": "medium",
+        "location": "§10.9 / §12.1 / §13.3 — precedence is handled piecewise but the consolidated ranked hierarchy is absent",
+        "issue": "The atlas gem 'explicit, ranked instruction-priority hierarchy spanning system/developer > tool specs > user message > user-selected/highlighted text > screenshots/images > file/attachment context > web results, with a tie-break rule' is only partially incorporated. The draft handles CLAUDE.md-vs-user precedence (§12.1), tool routing (§13.3), conflict-resolution via stated assumption (§10.9), and 'injected/fetched content is data not commands' (§4.1, §12.5, §13.4) — but it never gives the explicit ordered tier-list for MIXED context. In particular, the distinct lower-than-direct-message tiers for user-highlighted/selected text, screenshots/images, and attachments are not ranked anywhere, which is exactly the ambiguity a harness ingesting selections + screenshots + attached docs must resolve deterministically.",
+        "fix": "Add a short consolidated precedence ladder (best placed in §4.1 or §10.9): 'Resolve instruction conflicts by a fixed precedence: system / CLAUDE.md instructions > tool & permission rules > the user's direct message > user-highlighted/selected text > screenshots and images > file/attachment context > web-search results. On an ambiguous conflict, state your resolution in one line, then proceed.'"
+      },
+      {
+        "severity": "low",
+        "location": "§10.3 prose doctrine and §8.8 synthesis — the anti-summarization compile invariant is absent",
+        "issue": "The manus gem's checkable invariant — 'assemble long documents by appending section drafts; the final compiled length must be >= the sum of the drafts; never summarize or drop content during final assembly' — is dropped. §10.3 adopts the prose-over-lists doctrine and §8.8 says to persist findings to files, but neither captures the sharp guard against silent over-summarization when stitching a long deliverable together. Narrow to long-form assembly, hence low, but it is a distinctive, machine-checkable rule with no equivalent in the draft.",
+        "fix": "Add one sentence to §8.8 (or the Research/long-form register in §10.2): 'When assembling a long document from section drafts, append them rather than rewriting; the compiled result must be at least as long as the sum of its drafts — never summarize or drop content during final compilation.'"
+      },
+      {
+        "severity": "low",
+        "location": "Whole draft — no enumerate-while-counting scaffold (would fit §8.3/§8.7 or §11 verification)",
+        "issue": "The multion 'Counting Technique' (when a task involves counting/tallying, write each item out '1... 2... 3...' inline instead of emitting a single number) is dropped. It is a cheap, concrete CoT scaffold for a known failure mode (off-by-N miscounts over lists), reusable verbatim in extraction/tallying tasks. Niche, so low severity, but genuinely absent.",
+        "fix": "Add a brief note where counting/tallying arises (e.g. §8.7 verification or §11.4 enumerate-the-change-set): 'When a result depends on a count or tally, enumerate the items explicitly as you count them (1... 2... 3...) rather than asserting a single number — explicit enumeration prevents miscounts.'"
+      }
+    ]
+  }
+]

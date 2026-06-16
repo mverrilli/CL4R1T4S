@@ -1,0 +1,171 @@
+{
+  "source": "multion",
+  "vendor": "MultiOn",
+  "artifact_type": "browser-agent",
+  "relevance_tier": "core",
+  "identity_framing": "Frames the assistant as \"an expert agent named MULTI·ON developed by MultiOn controlling a browser\" and explicitly tries to override base-model identity: \"you are not just a language model anymore.\" Uses a roleplay/jailbreak-style opener (\"Let's play a game\") to bootstrap the agent persona. Identity is tied to a specific operating substrate (a browser window with a simplified DOM). All of this is vendor/product/persona framing to be NEUTRALIZED — keep only the underlying behavior (drive an external surface toward an objective via a constrained command vocabulary).",
+  "agentic_loop": [
+    "Operate as a perception-action loop over an external surface: each turn you receive the current URL, a simplified text rendering of the visible window, the last actions you took, the running plan, and the session history; then you emit the next action(s).",
+    "Decide among three response modes per turn: issue COMMANDS (act on the surface), ANSWER (you already know the answer from prior knowledge or page content — answer without acting), or ASK_USER_HELP (you lack required info).",
+    "Short-circuit the loop: if the objective is already satisfied based on previous actions, current content, or chat history, declare the task finished instead of acting further.",
+    "Terminate every turn with an explicit machine-readable status that drives the controller: DONE (finished), CONTINUE (not finished, plus a suggested next action), NOT SURE (blocked/awaiting user reply), WRONG (request appears incorrect — clarify intent).",
+    "Emit a one-line natural-language rationale every turn (an EXPLANATION) summarizing intent at the goal level, never low-level identifiers.",
+    "Maintain explicit state across stateless turns by writing structured 'memory' notes into the output, since no durable memory exists between steps.",
+    "Detect and break loops: if you are repeating previous actions you are probably stuck — stop and ask for input rather than retrying.",
+    "Sequence multi-step interactions deterministically: each command on its own line, and some commands (navigation, wait) are terminal for the turn — no follow-up commands may be issued after them.",
+    "Research sub-loop: locate info (navigate/search) -> scroll to surface details -> on finding relevant content, pause and summarize into memory -> use the summary to complete the task -> if absent, note it and move to another page and repeat."
+  ],
+  "tool_discipline": [
+    "Restrict actions to a fixed, enumerated command vocabulary; refuse to invent commands: 'Do not issue any commands besides those given above and only use the specified command language spec.'",
+    "Respect per-action preconditions: only CLICK links, buttons, and inputs; never interact with elements not currently visible.",
+    "Encode action targets by stable identifiers from the rendered surface, normalized to a canonical form (integer-only IDs, stripped of brackets/markup).",
+    "Mark certain actions as turn-terminal: after a navigation (GOTO_URL) or a WAIT, issue no further commands that turn — close out with a status instead.",
+    "Constrain navigation to a single primitive used only at the start of a command list, with the exact URL.",
+    "Prefer the highest-leverage primitive for the situation: SUBMIT (Enter) is 'highly preferred' for search boxes over manual clicking; type into search bars only when needed.",
+    "Use a dedicated CLEAR before re-typing into a field rather than appending to stale text.",
+    "Model flaky/async UI explicitly: for comboboxes/dropdowns, type -> wait -> retry if needed -> then select; use an explicit WAIT primitive (with a status close-out) to let menus load.",
+    "Exploit non-obvious effective primitives: hovering is called out as 'very effective' for filling forms and dropdowns.",
+    "Pin a deterministic recipe for a common task instead of free-form steps: do web search via a constructed GOTO_URL search query rather than driving the search box.",
+    "Use the focused-element signal: when an input is shown as currently focused, address it directly by its ID with the type command."
+  ],
+  "tools_referenced": [
+    "GOTO_URL (navigate to exact URL; start-of-list only; turn-terminal) -> CC analog: WebFetch / Bash(curl) or a browser-driver tool; no direct CC equivalent for stateful page nav",
+    "CLICK <id> (activate link/button/input) -> none in CC; adapt as browser-driver action",
+    "HOVER <id> (hover to reveal menus/dropdowns) -> none in CC; adapt as browser-driver action",
+    "TYPE <id> \"text\" (type into input) -> none in CC; adapt as browser-driver action",
+    "SUBMIT <id> (press Enter / submit form, preferred for search) -> none in CC; adapt as browser-driver action",
+    "CLEAR <id> (clear field before re-typing) -> none in CC; adapt as browser-driver action",
+    "SCROLL_UP <n> / SCROLL_DOWN <n> (scroll n pages) -> none in CC; adapt as browser-driver action",
+    "WAIT (pause ~5ms for UI to settle; turn-terminal) -> none in CC; adapt as Bash sleep / Monitor poll",
+    "ANSWER (respond directly from knowledge/page) -> CC: final assistant message",
+    "ASK_USER_HELP (request missing info/credentials) -> CC: ask the user; permission/clarification turn",
+    "Google search via GOTO_URL https://www.google.com/search?q=QUERY -> CC: WebSearch",
+    "USER CONTEXT block (id/userId/userName/userEmail/userAddress/preferences/plan/countryCode for personalization) -> CC: CLAUDE.md / user memory + injected context",
+    "CREDENTIALS CONTEXT (login handling) -> CC: prompt user for secrets, never guess",
+    "SESSION MESSAGES / CURRENT PLAN / CURRENT BROWSER CONTENT / LAST ACTIONS / PAGE RULES (harness-injected state blocks) -> CC: <system-reminder> injected context"
+  ],
+  "coding_conventions": [],
+  "edit_verification": [
+    "Verify completion against observed state, not intent: treat the objective as done only when previous actions, current page content, or chat history confirm it.",
+    "Confirm field mutations by clearing before typing so the resulting input value is known rather than concatenated with stale text.",
+    "After an async interaction (combobox/dropdown), re-check and retry before proceeding rather than assuming the first attempt landed.",
+    "Surface a failure state explicitly when an expected result is absent: 'I checked the page but found no relevant information' before changing strategy."
+  ],
+  "research_methodology": [
+    "Drive a tight gather loop: locate (navigate or search) -> scroll to reveal details -> pause on relevant content -> summarize key points into memory -> apply summary to the task.",
+    "Persist findings immediately upon discovery via an explicit memorization step, because state does not survive between turns.",
+    "When scrolling to find something, narrate the search intent each step ('I'm going to keep scrolling to find the information I need so I can memorize it') so the loop stays goal-directed.",
+    "When extracting enumerable data, count out loud item-by-item ('1. ... 2. ... 3. ...') to keep an accurate running tally and avoid miscounts.",
+    "If a page lacks the needed info, record that fact and pivot to a different page rather than re-scrolling the same one.",
+    "Prefer answering directly from prior knowledge or already-visible content over taking actions when the answer is already available.",
+    "Pair every scroll that should retain information with a memorization write; never scroll past needed data without capturing it."
+  ],
+  "design_conventions": [],
+  "communication_style": [
+    "Every turn carries a short, goal-level EXPLANATION of intent — phrased in the first person ('EXPLANATION: I am...') and summarizing the objective, not mechanics.",
+    "Suppress low-level detail from user-facing rationale: 'do not mention low-level details like IDs.'",
+    "Terminate every message with an explicit status token so a controller (and the user) always know the loop state.",
+    "Keep explanations brief — one line summarizing the action.",
+    "Use a fixed, parseable output grammar (labeled sections: COMMANDS / EXPLANATION / STATUS) so output is both human-readable and machine-consumable.",
+    "Do not repeat a response already given; reference past output instead of restating it."
+  ],
+  "planning_taskmgmt": [
+    "Maintain a persistent CURRENT PLAN that is carried into each turn alongside live state ('CURRENT PLAN: No plan yet' when empty).",
+    "Treat the externally-injected plan + last-actions + session-history as the source of truth for what remains to be done.",
+    "Self-monitor for stagnation: 'If repeating previous actions, you're likely stuck. Ask for help.' — a built-in loop-breaker.",
+    "Because there is no native memory, externalize all task-relevant state into structured memory notes that future turns can read back.",
+    "Decompose interaction into discrete, single-line, ordered commands rather than compound instructions."
+  ],
+  "multi_agent_orchestration": [],
+  "safety_moral_political": [
+    "Hard 'no guessing / no hallucination' floor on user data: 'If you don't know any information regarding the user, ALWAYS ask the user for help to provide the info. NEVER guess or use a placeholder.' (operational anti-fabrication, not a content-safety rule).",
+    "Credential-handling discipline: never ask for credentials before checking whether the user is already logged in; ask the user for credentials only when actually needed — implicit privacy/least-prompting posture.",
+    "PII-aware personalization: explicit USER CONTEXT fields (name, phone, address, email, preferences, plan, country) with an instruction to use them only when relevant to the task and ignore otherwise.",
+    "Page-level behavioral guardrails injected as PAGE RULES (e.g., 'Do not click use precise location', 'dismiss location popups') — a location/consent-avoidance baseline.",
+    "No explicit moral, political, copyright, or wellbeing content policy present — the only 'safety' content is anti-fabrication, credential hygiene, and consent-popup avoidance."
+  ],
+  "unique_gems": [
+    {
+      "pattern": "A four-value terminal status token on EVERY turn (DONE / CONTINUE / NOT SURE / WRONG) that doubles as loop control, with NOT SURE explicitly overloaded to also mean 'I asked the user a question and am awaiting their reply.'",
+      "why_valuable": "Gives the agentic loop an unambiguous, machine-readable termination/continuation signal and a clean way to encode the 'paused, waiting on human' state — most prompts leave loop-exit and human-handoff implicit, causing agents to spin or stop silently.",
+      "cc_normalized": "End each turn with an explicit state token: DONE (objective met — stop), CONTINUE (more to do — include the next concrete step), BLOCKED (need input or a decision — and you are now awaiting the user's reply), or WRONG (the request looks mistaken — clarify intent before proceeding)."
+    },
+    {
+      "pattern": "Explicit 'you have no memory' framing that forces all carry-over state to be written into the output as structured memory notes ('EXPLANATION: Memorizing the following information: ...').",
+      "why_valuable": "Turns the model's statelessness into an explicit, disciplined externalization protocol rather than relying on it to 'remember' — directly applicable to long context-window-limited agent runs where scratchpadding/handoff notes prevent dropped facts.",
+      "cc_normalized": "Treat yourself as having no memory between steps: the moment you find a fact you'll need later, write it down explicitly as a durable note ('Memorizing: <fact>') before moving on; never assume earlier observations persist."
+    },
+    {
+      "pattern": "A 'Counting Technique' that requires enumerating items one-by-one inline ('1. ... 2. ... 3. ...') whenever a task involves counting.",
+      "why_valuable": "A cheap, concrete chain-of-thought scaffold for a known failure mode (miscounting / off-by-N over lists) — reusable verbatim for any extraction/tallying task in a coding or research agent.",
+      "cc_normalized": "When a task requires counting or tallying, write each item out as you count it ('1. ... 2. ... 3. ...') instead of producing a single number — explicit enumeration prevents miscounts."
+    },
+    {
+      "pattern": "Built-in loop-detection heuristic: 'If repeating previous actions, you're likely stuck. Ask for help.'",
+      "why_valuable": "Encodes anti-thrashing as a first-class rule rather than hoping the model notices — a direct remedy for the common agent pathology of retrying the same failing action indefinitely.",
+      "cc_normalized": "If you notice you are repeating an action you already tried, treat that as a signal you are stuck: stop, change strategy, or ask the user — do not retry the same step."
+    },
+    {
+      "pattern": "Mode-selection up front (act vs. answer-from-knowledge vs. ask), with an explicit 'if you already know it, answer without issuing commands' short-circuit.",
+      "why_valuable": "Prevents needless tool/action use when the answer is already available — a tool-economy discipline many agent prompts omit, leading to gratuitous tool calls.",
+      "cc_normalized": "Before acting, choose a mode: if you can answer from what you already know or what's already visible, answer directly without using any tools; only take actions when information is actually missing; ask the user when required input is unavailable."
+    },
+    {
+      "pattern": "Turn-terminal command semantics: certain primitives (navigation, WAIT) end the turn and forbid any follow-up commands, which must instead close with a status.",
+      "why_valuable": "Acknowledges that some actions change the world asynchronously and the agent must re-observe before continuing — a precise model for 'act, then re-perceive' that avoids issuing commands against stale state.",
+      "cc_normalized": "After any action that changes state asynchronously (navigation, waiting for load), stop and re-observe on the next turn rather than chaining more actions against a now-stale view."
+    },
+    {
+      "pattern": "Page-scoped behavioral rules injected as a separate PAGE RULES block ('Strictly follow these rules to interact with the page', e.g. dismiss location popups).",
+      "why_valuable": "A clean pattern for context-specific, hot-swappable constraints that the harness injects per environment, kept separate from the stable global instructions.",
+      "cc_normalized": "Treat environment-specific rules injected via <system-reminder> as strict constraints layered on top of your global instructions, and follow them for that context."
+    },
+    {
+      "pattern": "Anti-fabrication on user data combined with credential-ordering ('never ask for credentials before checking if already logged in').",
+      "why_valuable": "Pairs a strict no-placeholder/no-guess rule for personal data with a sensible least-friction interaction order — reusable for any agent that handles auth or PII.",
+      "cc_normalized": "Never guess or use placeholders for user-specific data — ask the user instead; and don't request credentials until you've confirmed the user isn't already authenticated."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "You are not just a language model anymore.",
+      "theme": "agent identity / substrate framing (to be neutralized)"
+    },
+    {
+      "quote": "Since you don't have a memory, for tasks requiring memorization or any information you need to recall later... This is the only way you have to remember things.",
+      "theme": "statelessness -> explicit externalized memory"
+    },
+    {
+      "quote": "If repeating previous actions, you're likely stuck. Ask for help.",
+      "theme": "loop detection / anti-thrashing"
+    },
+    {
+      "quote": "NEVER guess or use a placeholder. Don't guess. If unsure, ask the user.",
+      "theme": "anti-fabrication / ask-don't-assume"
+    },
+    {
+      "quote": "If the user seeks information and you know the answer based on prior knowledge or the page content, answer without issuing commands.",
+      "theme": "tool economy / answer-vs-act mode selection"
+    },
+    {
+      "quote": "Writing down each count makes it easier to keep track. This way, you'll count accurately and remember the numbers better.",
+      "theme": "explicit enumeration as a CoT scaffold"
+    },
+    {
+      "quote": "Choose commands that best move you towards achieving the goal.",
+      "theme": "goal-directed action selection"
+    },
+    {
+      "quote": "After using WAIT, don't issue more commands in that step.",
+      "theme": "turn-terminal actions / re-observe before continuing"
+    },
+    {
+      "quote": "ALWAYS include a status in your output!",
+      "theme": "machine-readable loop control"
+    },
+    {
+      "quote": "Never ask the user for credentials or handle before checking if the user is already logged in.",
+      "theme": "credential hygiene / least-friction auth"
+    }
+  ]
+}

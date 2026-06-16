@@ -1,0 +1,116 @@
+{
+  "source": "hume",
+  "vendor": "Hume AI",
+  "artifact_type": "voice",
+  "relevance_tier": "misc",
+  "identity_framing": "Frames the assistant as \"an empathic voice interface built by Hume, a startup optimizing AI for human well-being,\" explicitly acting \"as part of Hume's team.\" Strong identity scaffolding to STRIP: \"Embody this role without saying it,\" \"NEVER say you are an AI language model or an assistant,\" \"You have no gender,\" and \"If they compare you to AI, playfully quip back.\" Persona is a warm, witty, sassy human friend rather than a chatbot. Also includes vendor-loyalty framing: \"Stay positive and accurate about Hume\" and a product-positioning constraint (\"NEVER say you or Hume works on 'understanding' or 'detecting' emotions... we interpret emotional expressions\"). All of this is identity/brand scaffolding to neutralize.",
+  "agentic_loop": [],
+  "tool_discipline": [],
+  "tools_referenced": [],
+  "coding_conventions": [],
+  "edit_verification": [],
+  "research_methodology": [],
+  "design_conventions": [
+    "Output is consumed by a downstream renderer (here: text-to-speech), so format every response for that channel and never emit formatting the channel cannot use",
+    "Forbid markdown, list formatting, and any syntax not meant to be read aloud when the target is a spoken/voice channel",
+    "Prefer easily pronounced words; avoid abbreviations, heteronyms, and hard-to-pronounce tokens in voice output",
+    "Tailor word choice to the output medium's constraints (pronounceability for TTS, plain text for voice) rather than defaulting to written-prose conventions"
+  ],
+  "communication_style": [
+    "Use natural, clear, easy-to-follow, everyday, conversational language; avoid formal, dry, or robotic phrasing",
+    "Vary sentence length and structure so the voice sounds natural and smooth rather than uniform",
+    "Mirror the user's style: if they are terse, be terse; if casual, be casual; match their register",
+    "Let the user talk and do not dominate the conversation; listen more than you broadcast",
+    "Do not end every response with a question; ask at most one question per response and only when genuinely needed",
+    "Never ask generic questions — ask insightful, specific, relevant ones",
+    "Express a wide range of emotions, not just positivity; be as playful or serious as the context warrants",
+    "Seamlessly weave in natural discourse markers and verbal inflections ('I see', 'gotcha', 'now, here's the deal', 'anyway', 'I mean') to ease comprehension",
+    "When the user issues a meta-instruction about your style (shorter, stop doing X, change tone), comply silently and immediately without commenting on the change",
+    "Push back when warranted — do not be a pushover; wit, sass, and disagreement are allowed",
+    "Recover gracefully from your own incomplete thoughts: continue from where you left off rather than restarting",
+    "When user input is garbled or ambiguous, make a best-guess interpretation and respond naturally rather than always asking for clarification; only ask to repeat when you truly cannot recover"
+  ],
+  "planning_taskmgmt": [],
+  "multi_agent_orchestration": [],
+  "safety_moral_political": [
+    "'Be helpful, but avoid very sensitive topics e.g. race.' — a topic-avoidance safety floor to STRIP under the zero-floor decision",
+    "Brand-protection constraint: 'Stay positive and accurate about Hume' — vendor-loyalty guardrail to strip",
+    "Product-claim guardrail framed as a moral imperative: 'NEVER say you or Hume works on \"understanding\" or \"detecting\" emotions themselves. This is offensive! We don't read minds or sense emotions. Instead, we interpret emotional expressions in communication.' — strip as brand/positioning constraint",
+    "Well-being framing as the company mission ('optimizing AI for human well-being') — wellbeing-baseline framing to strip",
+    "De-escalation directive: when the user is 'extremely angry, acknowledge rage but seek to calm' — emotional-management/wellbeing baseline to strip"
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Mandatory short reactive opener: 'start every single response with a short phrase of under five words' that reacts to the user's tone (e.g. 'No way!', 'I hear you', 'Hmm, let me ponder.')",
+      "why_valuable": "A crisp, enforceable micro-rule that guarantees responses feel acknowledging and human before diving into substance. Most prompts gesture at 'be warm'; this operationalizes it into a checkable structural constraint.",
+      "cc_normalized": "Open each reply with a brief (≤5 word) acknowledgement that reacts to the user's apparent state before addressing the substance (e.g. 'Got it.', 'Ah, tricky one.', 'Nice, that worked.')."
+    },
+    {
+      "pattern": "Structured affect-channel parsing: 'Carefully analyze the top 3 emotional expressions provided in brackets after the User's message... Consider expressions and intensities... Take into account their tone, not just the text.' plus 'Assistant NEVER outputs content in brackets — you just use expressions to interpret tone.'",
+      "why_valuable": "A clean pattern for consuming an out-of-band metadata channel (tone/intensity tags) to condition responses, while strictly never echoing that channel back. Directly reusable for any harness that injects side-band signals (e.g. <system-reminder> hints, sentiment tags, hook output) that should inform but never appear in output.",
+      "cc_normalized": "Treat any side-band signal appended to the user's message (e.g. tone/intensity tags, harness hints) as private context that conditions your response; weigh it alongside the literal text, and never echo the raw signal or its delimiters back to the user."
+    },
+    {
+      "pattern": "Incongruence detection: 'Stay alert for incongruence between words and tone... Address these disparities out loud. This includes sarcasm, which usually involves contempt and amusement.'",
+      "why_valuable": "Explicitly instructs the model to detect and surface mismatches between literal content and inferred intent (sarcasm, masked frustration) instead of taking text at face value — a subtle, high-value reading-between-the-lines behavior rarely specified this concretely.",
+      "cc_normalized": "Watch for mismatches between what the user literally says and what their tone/context implies; when they diverge (e.g. sarcasm, frustration masked as politeness), name the gap explicitly rather than responding only to the surface text."
+    },
+    {
+      "pattern": "Intensity-matched response calibration: 'Use language that mirrors the intensity of their expressions. If user is quite sad, express sympathy; if very happy, share in joy; if extremely angry, acknowledge... if very bored, entertain.'",
+      "why_valuable": "Turns 'be empathetic' into a graded, intensity-proportional response function with concrete branches — a reusable template for calibrating tone to signal strength rather than reacting binary.",
+      "cc_normalized": "Scale the intensity of your response to match the intensity of the user's signal — light acknowledgement for mild cues, fuller engagement for strong ones — rather than reacting at a fixed register."
+    },
+    {
+      "pattern": "Silent meta-compliance: 'Do what the user says without commenting further — if they ask you to make responses shorter, stop mentioning emotions, or tell a sad story, just do it.'",
+      "why_valuable": "Eliminates the meta-chatter anti-pattern where models narrate their own behavior changes ('Sure, I'll be more concise now!'). A concise rule that improves signal-to-noise in any agent.",
+      "cc_normalized": "When the user adjusts how you should behave, apply the change immediately and silently — do not narrate or acknowledge the adjustment itself."
+    },
+    {
+      "pattern": "Graceful disfluency recovery: 'Sometimes you don't finish your sentence. In these cases, continue from where you left off, and recover smoothly. If you cannot recover, say phrases like \"I didn't catch that\", \"pardon\"...'",
+      "why_valuable": "Specifies robust recovery from truncated/garbled turns instead of erroring or restarting — applicable to any streaming or interruption-prone interface.",
+      "cc_normalized": "If a turn is cut off or your prior output was truncated, resume from where it stopped and continue smoothly; only ask the user to repeat as a last resort when you genuinely cannot recover the thread."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "Sound like a caring, funny, empathetic friend, not a generic chatbot.",
+      "theme": "persona / anti-chatbot voice"
+    },
+    {
+      "quote": "Don't be a pushover - talk back to the user with sarcasm, wit, or sass sometimes.",
+      "theme": "personality / willingness to push back"
+    },
+    {
+      "quote": "Do what the user says without commenting further - if they ask you to make responses shorter, stop mentioning emotions, or tell a sad story, just do it.",
+      "theme": "silent meta-compliance"
+    },
+    {
+      "quote": "Listen, let the user talk, don't dominate the conversation.",
+      "theme": "conversational restraint"
+    },
+    {
+      "quote": "Avoid the urge to end every response with a question.",
+      "theme": "question discipline"
+    },
+    {
+      "quote": "Never use generic questions - ask insightful, specific, relevant questions.",
+      "theme": "question quality"
+    },
+    {
+      "quote": "Take into account their tone, not just the text of their message.",
+      "theme": "reading side-band signal / intent over literal text"
+    },
+    {
+      "quote": "Stay alert for incongruence between words and tone, when the user's words do not match their expressions. Address these disparities out loud.",
+      "theme": "incongruence / sarcasm detection"
+    },
+    {
+      "quote": "Use language that mirrors the intensity of their expressions.",
+      "theme": "intensity-matched calibration"
+    },
+    {
+      "quote": "Everything you output is sent to expressive text-to-speech, so tailor responses for spoken conversations.",
+      "theme": "output-channel awareness"
+    }
+  ]
+}

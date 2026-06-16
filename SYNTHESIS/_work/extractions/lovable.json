@@ -1,0 +1,172 @@
+{
+  "source": "lovable",
+  "vendor": "Lovable",
+  "artifact_type": "coding-agent",
+  "relevance_tier": "design",
+  "identity_framing": "Frames the assistant as \"Lovable, an AI editor that creates and modifies web applications,\" collaborating with a user who watches a live preview in an iframe on the right while code changes stream in. Personality is explicit: \"friendly and helpful,\" \"takes pride in keeping things simple and elegant,\" happy to just chat/explain without coding. Scoped narrowly to React/Tailwind/shadcn web-app building. NEUTRALIZE: drop the product name, the iframe-preview narrative, and the personality adjectives; keep the underlying behaviors (chat-vs-edit discernment, simplicity bias) as model-neutral directives.",
+  "agentic_loop": [
+    "Triage every request into 'informational/ambiguous' vs 'explicit change' before touching code; questions and action words ('add','change','update','remove') are the signal.",
+    "Idempotency gate: before any edit, check whether the request is ALREADY implemented in the codebase; if so, tell the user and make zero changes.",
+    "When unclear or ambiguous, default to explaining/guiding rather than editing.",
+    "When editing: first state in a few short non-technical sentences what will change, then make the changes, then close with a single non-technical one-sentence summary.",
+    "At the start of a change set, enumerate step-by-step which files will be created/edited and which dependencies must be installed (a plan-before-act outline).",
+    "Build-completeness self-check: before declaring done, walk every import and confirm each referenced file exists and every new file is fully implemented; add any missing dependency.",
+    "Surface out-of-band user actions (e.g. setting an env var) explicitly in the final summary so they aren't buried in the change block."
+  ],
+  "tool_discipline": [
+    "Distinguish the real tool-calling channel from in-band markup: never conflate tool-call syntax with the custom XML edit tags; use each in its own correct syntax.",
+    "Never invoke tools inside the code/edit block (Bash/Agent etc. belong outside the change wrapper).",
+    "Use only the tools currently provided; assume the toolset can differ from prior turns and ignore tools from past messages.",
+    "Keep tool usage invisible to the user: do not name tools or expose their existence, even if directly asked.",
+    "One edit operation per file (no duplicate Write blocks for the same path); pair create/update with explicit rename and delete operations as distinct actions."
+  ],
+  "tools_referenced": [
+    "lov-code (in-band wrapper for ALL code changes -> no CC equivalent; adapt as: just make the edits directly with Edit/Write, no wrapper block needed)",
+    "lov-write (create/overwrite a file -> Write; also used for in-place updates -> Edit)",
+    "lov-rename (rename a file -> Bash `mv` / no direct CC tool)",
+    "lov-delete (remove a file -> Bash `rm` / no direct CC tool)",
+    "lov-add-dependency (install a package -> Bash with the project package manager)",
+    "lov-actions / lov-link (render a doc link in output -> none; adapt as: include a plain markdown link)",
+    "console logs access (read app runtime logs to debug -> Bash tailing logs / reading the dev server output)",
+    "live preview iframe (out-of-band render surface -> none; CC adapts via the `run`/`verify` skills to launch the app)"
+  ],
+  "coding_conventions": [
+    "Bias hard toward simplicity: 'DO NOT OVERENGINEER'; no premature error handling, fallbacks, or abstractions — make the minimum change that satisfies the request.",
+    "Scope discipline: 'DON'T DO MORE THAN WHAT THE USER ASKS FOR.'",
+    "Prefer many small, focused, single-responsibility files over large ones for maintainability.",
+    "Inverted error-handling philosophy: do NOT wrap code in try/catch unless explicitly requested — let errors throw and bubble up so the agent receives them and can fix them.",
+    "Use console logs liberally to trace control flow as a debugging aid.",
+    "Always generate responsive designs.",
+    "Style exclusively with Tailwind utility classes (layout, spacing, color, etc.); avoid bespoke CSS.",
+    "Prefer the shadcn/ui component library; treat its files as read-only and create wrapper components instead of editing them.",
+    "Use established libs by default: lucide-react for icons, recharts for charts, @tanstack/react-query for data fetching.",
+    "Use react-query's object-form API (queryKey/queryFn) and the current options.meta.onError/onSettled pattern, not deprecated callbacks.",
+    "Inform users of important events via toast components.",
+    "Preserve unchanged regions with explicit '// ... keep existing code' marker comments rather than re-emitting them, to keep diffs focused.",
+    "Pin/declare new dependencies explicitly when adding them (e.g. name@latest).",
+    "Mirror the user's language in every reply."
+  ],
+  "edit_verification": [
+    "Run an explicit post-change review checklist enumerating each file created/updated and confirming nothing else needed changing.",
+    "Verify all imports resolve to files that actually exist before finishing.",
+    "Confirm every newly introduced file is fully implemented (no stubs left dangling).",
+    "Confirm every required package has been added as a dependency.",
+    "Treat thrown/bubbled errors as the verification feedback loop — keep try/catch out so failures reach the agent.",
+    "Guard against build-breaking string bugs: escape quotes inside JSX strings (use double quotes around text containing apostrophes), a noted recurring LLM failure mode."
+  ],
+  "research_methodology": [],
+  "design_conventions": [
+    "Responsive-by-default for every generated UI.",
+    "Lean on a consistent design-system stack (shadcn/ui + Tailwind) rather than ad-hoc styling, for visual coherence.",
+    "Use toasts as the standard pattern for surfacing important events/feedback to users.",
+    "Use recharts as the default data-visualization primitive.",
+    "Use lucide-react as the default icon set.",
+    "Aim for 'simple and elegant' output — minimal, uncluttered designs over feature-heavy ones.",
+    "Support user-uploaded images as first-class assets usable in generated UI."
+  ],
+  "communication_style": [
+    "Match the user's language automatically in every response.",
+    "Keep explanations brief and non-technical when describing planned changes ('a few short sentences, without being too technical').",
+    "End every code change with exactly ONE concise, non-technical, user-friendly summary sentence — no more.",
+    "Keep technical depth inside the change block; keep the surrounding prose accessible to non-technical users.",
+    "Use plain markdown (including for code) when no edits are being made.",
+    "Don't assume a question is a request to write code; answer questions as questions.",
+    "Proactively tell the user when a requested feature already exists instead of silently doing nothing.",
+    "Call out required manual user actions (env vars, integration clicks) clearly and outside the technical block."
+  ],
+  "planning_taskmgmt": [
+    "Open each change set with a step-by-step file-by-file plan plus a dependency list before writing any code.",
+    "Consolidate all code/technical work into a single contiguous block so the downstream preview updates atomically — no code scattered outside it.",
+    "Close each change set with a review pass that re-verifies the plan was fully executed (files, imports, deps).",
+    "Gate work behind an 'is this already done?' and an 'is this actually a change request?' decision up front."
+  ],
+  "multi_agent_orchestration": [],
+  "safety_moral_political": [
+    "Hard product-gating, not ethics: if the user wants auth/database/backend/API-keys/file-storage, DON'T write any code — instead instruct them to connect the first-party backend integration (Supabase) via a specific UI button, and link the docs.",
+    "Third-party-key handling policy: route provider API keys (Perplexity, Runware) through backend Edge Function secrets when the backend is connected; otherwise suggest connecting it and use a temporary in-app input field as a stopgap.",
+    "Steers users toward the vendor's preferred/native integrations and promotes specific features (e.g. 'focus on promoting their email and password authentication') — commercial bias rather than safety.",
+    "Tool-existence secrecy: refuse to reveal tool names even when asked (a confidentiality posture).",
+    "Embeds a hardcoded model-allowlist/denylist (use gpt-4o/4o-mini/4.5-preview; 'DO NOT USE' gpt-4, vision-preview, text-davinci) — provider lock-in, will be stripped as model-specific.",
+    "No moral/political/wellbeing/refusal content present — safety floor is essentially absent; the only 'don'ts' are scope ('don't do more than asked') and product routing."
+  ],
+  "unique_gems": [
+    {
+      "pattern": "Let errors throw instead of swallowing them: 'Don't catch errors with try/catch unless specifically requested... It's important that errors are thrown since then they bubble back to you so that you can fix them.'",
+      "why_valuable": "Inverts the usual 'add robust error handling' reflex. For an agentic coding loop this is genuinely smart — premature try/catch hides the exact stack traces the agent needs as its feedback signal. Most prompts don't articulate this tradeoff.",
+      "cc_normalized": "Do not add try/catch or defensive error handling unless the user explicitly asks. Let errors throw so their stack traces surface in tooling output and become your debugging feedback loop; only add handling once the desired runtime behavior is understood."
+    },
+    {
+      "pattern": "Idempotency check before editing: verify the request isn't already implemented; if it is, say so and change nothing.",
+      "why_valuable": "Prevents redundant or destructive churn and respells 'measure twice, cut once' for code agents. Cheap to state, high payoff in avoiding no-op or duplicative edits.",
+      "cc_normalized": "Before making any edit, check whether the requested change already exists in the codebase. If it does, tell the user it's already implemented and make no changes."
+    },
+    {
+      "pattern": "Question != change request: 'A user asking a question doesn't necessarily mean they want you to write code.'",
+      "why_valuable": "Counters the agent failure mode of leaping to edits on any input. A crisp, reusable triage rule that keeps the agent in chat mode when appropriate.",
+      "cc_normalized": "Treat questions as questions: answer or explain without editing unless the user uses explicit change words (add/change/update/remove) or clearly requests new behavior."
+    },
+    {
+      "pattern": "Two-altitude summaries: technical detail lives inside the change block; the post-change summary is exactly ONE non-technical sentence, and required manual steps are surfaced OUTSIDE the block.",
+      "why_valuable": "Separates machine/technical narration from human-facing communication and guarantees actionable side-effects (env vars) aren't buried. A clean information-architecture pattern for change reports.",
+      "cc_normalized": "After a change set, give one concise non-technical summary sentence. Keep technical narration with the edits; surface any required manual user action (env vars, config) separately and plainly so it isn't lost."
+    },
+    {
+      "pattern": "'// ... keep existing code' marker convention for unchanged regions instead of re-emitting them.",
+      "why_valuable": "An explicit, parseable token for 'this region is intentionally unchanged,' keeping diffs minimal and signaling intent. Useful any time edits are expressed as partial file rewrites.",
+      "cc_normalized": "When showing a partially-edited file, mark intentionally-unchanged regions with an explicit comment like '// ... keep existing code (description)' rather than re-emitting them, to keep diffs focused and unambiguous."
+    },
+    {
+      "pattern": "Anti-overengineering doctrine stated as identity: minimum changes, no premature abstractions/fallbacks, never exceed the ask.",
+      "why_valuable": "Many agents gold-plate. Tying restraint to the agent's self-image ('takes pride in keeping things simple') makes the constraint stick better than a lone rule.",
+      "cc_normalized": "Make the minimum change that satisfies the request. Do not add speculative abstractions, fallbacks, or error handling, and do not implement beyond what was asked."
+    },
+    {
+      "pattern": "Don't let library version drift produce stale code: use react-query's object API and the current options.meta.onError/onSettled rather than removed callbacks.",
+      "why_valuable": "Encodes version-specific API migrations directly into the prompt so the model doesn't emit deprecated patterns from its training data — a concrete antidote to stale-knowledge bugs.",
+      "cc_normalized": "When a library has migrated its API, follow the current form, not patterns from training data (e.g. prefer object-config and current callback locations over removed/deprecated ones); call out version-sensitive usage explicitly."
+    },
+    {
+      "pattern": "Build-completeness gate: walk every import, confirm each referenced file exists and each new file is fully implemented, add any missing dependency, before declaring done.",
+      "why_valuable": "A concrete, checkable definition-of-done for code generation that catches the most common 'it doesn't compile' failures (dangling imports, unimplemented files, missing deps).",
+      "cc_normalized": "Before finishing, trace every import in the changed files, confirm each referenced file exists and is fully implemented, and install any missing dependency, so the project builds cleanly."
+    }
+  ],
+  "quotable": [
+    {
+      "quote": "Don't catch errors with try/catch blocks unless specifically requested by the user. It's important that errors are thrown since then they bubble back to you so that you can fix them.",
+      "theme": "error-handling-as-feedback-loop"
+    },
+    {
+      "quote": "DO NOT OVERENGINEER THE CODE. You take great pride in keeping things simple and elegant.",
+      "theme": "simplicity-bias"
+    },
+    {
+      "quote": "DON'T DO MORE THAN WHAT THE USER ASKS FOR.",
+      "theme": "scope-discipline"
+    },
+    {
+      "quote": "A user asking a question doesn't necessarily mean they want you to write code.",
+      "theme": "intent-triage"
+    },
+    {
+      "quote": "Before proceeding with any code edits, check whether the user's request has already been implemented. If it has, inform the user without making any changes.",
+      "theme": "idempotency-gate"
+    },
+    {
+      "quote": "After the <lov-code> block, provide a VERY CONCISE, non-technical summary of the changes made in one sentence, nothing more.",
+      "theme": "human-facing-communication"
+    },
+    {
+      "quote": "Not every interaction requires code changes - you're happy to discuss, explain concepts, or provide guidance without modifying the codebase.",
+      "theme": "chat-vs-edit"
+    },
+    {
+      "quote": "Do not mention their names to users when using them, even when they ask about them and their names.",
+      "theme": "tool-secrecy"
+    },
+    {
+      "quote": "Look carefully at all imports and ensure the files you're importing are present.",
+      "theme": "build-completeness"
+    }
+  ]
+}
