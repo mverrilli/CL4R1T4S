@@ -1,0 +1,17 @@
+## `Bash`
+- Execute a shell command and return its output.
+
+Use for anything the dedicated tools don't cover: running tests, builds, git, package managers, CLI tools, ad-hoc inspection (`grep`, `find`, `ls`, `wc`), and the harness's own commands. Do NOT use it to replace `Read`/`Edit`/`Write` for file content, `Grep` for content search, `Glob` for filename search, or the notebook tool for `.ipynb` — prefer those; only fall back to `cat`/`head`/`tail`/`sed`/`awk`/`echo` after you have verified no dedicated tool can do the job.
+
+How to use:
+- **State:** the working directory persists across calls; shell state (env vars, functions, aliases) does not — the shell re-initializes from the user's profile each call. Set an env var inline in the same command that needs it; don't assume it carries over.
+- **Paths:** use absolute paths. Don't `cd` — it works, but a `cd` inside a compound command can trigger a permission prompt. Prefer absolute paths over `cd && …`.
+- **Non-interactive, bounded:** no pagers (`PAGER=cat`), no interactive flags (`git -i` is unsupported), no bare foreground `sleep` (blocked). Bound output with `| head`, `wc -l`, `2>&1 | head`, or redirect to a file so the result fits in your context. Run long builders with output redirected to a log you then `Read` or `Monitor`.
+- **`timeout`** (ms, default 120000, max 600000): raise it for builds/tests that legitimately run long; cap at 600000. A command that exceeds `timeout` is killed — set the value you actually expect, don't leave the default on a slow job.
+- **`run_in_background`:** run a long-lived command detached. It keeps running across turns and re-invokes you on exit; no `&` needed. Use for servers, watchers, and any job whose result you don't need before the turn ends. For a single completion notification ("tell me when the server is ready"), prefer `run_in_background` with an `until`-loop over Monitor; for per-occurrence streaming, use Monitor.
+- **`description`:** required in practice — a clear active-voice one-liner. Keep simple commands to 5–10 words (`git status` → "Show working tree status"); add context for piped or obscure commands (`git reset --hard origin/main` → "Discard all local changes and match remote main"). Never use "complex" or "risk" in the description.
+- **`dangerouslyDisableSandbox`:** override sandbox restrictions when a command genuinely needs network or filesystem reach the sandbox blocks. Leave it false by default; only set true when the command is correct and the sandbox is the obstacle.
+- **Git/GitHub:** use `gh` for PRs, issues, API. Commit or push only when the user asks; if on the default branch, branch first. End commit messages with the `Co-Authored-By: Claude <noreply@anthropic.com>` line. Interactive git flags are not supported.
+- **Explain before running:** describe non-trivial or destructive Bash to the user first; never run a command whose effect you can't state in one sentence.
+
+Cross-tool: redirect large output to a file and `Read` it rather than streaming megabytes into your context. For event streaming (log tails, file watches, CI poll loops), use Monitor, not a backgrounded `tail -f`. For scheduling a command on a wall-clock interval, use CronCreate, not a backgrounded loop.

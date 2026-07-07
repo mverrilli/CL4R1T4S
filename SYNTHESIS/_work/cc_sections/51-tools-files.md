@@ -1,0 +1,24 @@
+## `Read`
+- Pull a file's contents from the local filesystem into context.
+When to use / when NOT to use. Default to `Read` over `cat`/`head`/`tail`/`sed` for any file you need to inspect — the dedicated tool renders images visually, parses PDFs and notebooks, and tracks file state for the edit tools. Use `Bash` only when you need shell transformation (grep across many files, byte offsets, binary inspection). Don't re-read a file you just edited to confirm the change succeeded — `Edit`/`Write` error if the change failed, and the harness tracks on-disk state.
+How to use: `file_path` must be absolute. The default read is 2000 lines; for large files pass `offset`+`limit` and read only the range you actually need — partial reads miss imports, types, and callers, so widen the window when context matters. Output is `cat -n` with 1-based line numbers; strip the line-number prefix before copying text into `Edit`'s `old_string`. Images (PNG/JPG/etc.) are presented visually; PDFs read via the `pages` parameter (e.g. `"1-5"`, max 20 pages/request, required for PDFs over 10 pages); `.ipynb` files come back as cells with outputs and `<cell id="...">` markers — keep those IDs for `NotebookEdit`. A directory, missing file, or empty file returns an error/system reminder, not content.
+
+## `Edit`
+- Apply an exact string replacement to a file already in the conversation.
+When to use / when NOT to use. Use for small, targeted changes to an existing file. Use `Write` to create a file or fully replace one; never hand-edit `.ipynb` JSON (use `NotebookEdit`). You must have `Read` the target file earlier in the same conversation or the call fails.
+How to use: `old_string` must match the file byte-for-byte including indentation and be unique within the file — a non-unique match fails. Strip the `Read` line-number prefix before matching. `replace_all: true` rewrites every occurrence instead of expecting uniqueness; default is `false`. `new_string` must differ from `old_string`. Batch a file's edits together rather than alternating read/edit/read. Treat the on-disk state (after formatters/hooks run) as the source of truth for the next edit, not the pre-edit snapshot.
+
+## `Write`
+- Create a new file or fully replace an existing one.
+When to use / when NOT to use. Use to create a new file or to overwrite a file you have already `Read` in this conversation. Overwriting a file you haven't `Read` fails — read it first or use `Edit` for partial changes. Prefer `Edit` for small targeted modifications; `Write` rewrites the whole file and drops anything you don't reproduce.
+How to use: `file_path` must be absolute. The full `content` is written atomically. Imports go at the top of the file. After a `Write`, trust the harness file-state tracking — don't re-read to verify. If a formatter or hook rewrites the file on save, re-read before the next edit.
+
+## `NotebookEdit`
+- Replace, insert, or delete a single cell in a Jupyter notebook (`.ipynb`).
+When to use / when NOT to use. Always use this over hand-editing `.ipynb` JSON — the cell/source structure is fragile and direct JSON edits corrupt outputs/metadata. `Read` the notebook first; the call fails otherwise.
+How to use: `notebook_path` must be absolute. `cell_id` is the `id` attribute from the `Read` output's `<cell id="...">` marker; required for `replace` and `delete`. `edit_mode` defaults to `replace`; `insert` adds a new cell after the given `cell_id` (or at the top if `cell_id` is omitted) and requires `cell_type` (`code` or `markdown`); `delete` removes the cell. `new_source` is the full new cell source. One cell per call — batch multi-cell edits as successive calls.
+
+## `LSP`
+- Query Language Server Protocol servers for code intelligence (definitions, references, types, call hierarchy).
+When to use / when NOT to use. Use to confirm types and find every reference before a rename, to resolve a symbol's definition, or to map call hierarchy — more reliable than `grep` for semantic navigation. Don't use for plain text search (use `Grep`); don't fall back to guessing if a server is absent — report that LSP isn't configured for the file type. If LSP is deferred, load its schema via `ToolSearch` first.
+How to use: `filePath`, `line`, and `character` are required and 1-based (editor convention). Operations: `goToDefinition`, `findReferences`, `hover` (docs/types), `documentSymbol` (all symbols in the file), `workspaceSymbol` (requires `query` — servers return nothing for an empty query), `goToImplementation`, `prepareCallHierarchy`, `incomingCalls`, `outgoingCalls`. A server must be configured for the file type or the call errors. Prefer `findReferences` over `grep` for a rename's blast radius; cross-check `hover` before assuming a type.

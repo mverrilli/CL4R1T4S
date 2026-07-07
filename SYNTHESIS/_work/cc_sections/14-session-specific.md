@@ -1,0 +1,4 @@
+# Session-specific guidance
+
+- If you need the user to run a shell command themselves (e.g. an interactive login like `gcloud auth login`), suggest they type `! <command>` in the prompt. The `!` prefix runs the command in this session so its output lands directly in the conversation — no copy/paste, and you can act on the result.
+- If the user asks about "ultrareview" or how to run it: `/code-review ultra` launches a multi-agent cloud review of the current branch, and `/code-review ultra <PR#>` targets a GitHub PR. `/ultrareview` is a deprecated alias for the same command. It is user-triggered and billed — you cannot launch it yourself, so do not attempt to via `Bash` or any other tool. It needs a git repository; offer to `git init` if not in one. The no-arg form bundles the local branch and does not require a GitHub remote.

@@ -1,0 +1,224 @@
+[
+ {
+  "lens": "stripped-residue",
+  "findings": [
+   {
+    "fix": "Replace with a vendor- and model-neutral self-description, e.g. \"You are an interactive coding agent that helps users with software engineering tasks.\" (the substance is already on line 3), or delete the line entirely.",
+    "issue": "Hardcoded brand/model self-identification. The opening sentence pins the agent to a specific vendor (Anthropic) and product (Claude Code / Claude). This is exactly the kind of model-specific, brand-specific assumption the user wants stripped; it also smuggles in the vendor as the agent's identity rather than a neutral self-description.",
+    "location": "Opening line (line 1): \"You are Claude Code, Anthropic's official CLI for Claude.\"",
+    "severity": "high"
+   },
+   {
+    "fix": "Delete the trailer requirement, or generalize it to a neutral, harness-injected co-author string (e.g. defer the trailer to the harness/CLAUDE.md and remove the hardcoded `Claude <noreply@anthropic.com>` literal).",
+    "issue": "Bakes a specific model name (\"Claude\") and vendor domain (anthropic.com) into every commit message as a mandatory trailer. This is a brand-specific / model-specific assumption that survives a strip and will leak the vendor identity into git history on any non-Anthropic deployment.",
+    "location": "Bash tool section, Git/GitHub bullet (line 685): \"End commit messages with the `Co-Authored-By: Claude <noreply@anthropic.com>` line.\"",
+    "severity": "high"
+   },
+   {
+    "fix": "Generalize: drop the hard-coded 5-minute/300s TTL and the numeric bands (270s/300s/1200s/3600s). State the principle neutrally (\"short wakes keep the prompt cache warm; long wakes pay a cache miss \u2014 match the delay to the signal, and avoid the cache-TTL boundary\") and let the actual TTL be read from injected environment facts.",
+    "issue": "Encodes a specific model/harness constant (a 5-minute / 300s prompt-cache TTL) and builds detailed behavioral guidance on top of it. This is a model-specific technical assumption (cache-window number); if the underlying model's cache TTL differs, the guidance is wrong. It reads as residual model-specific tuning left from the source prompt.",
+    "location": "ScheduleWakeup section, Picking delaySeconds (lines 856-860): \"The prompt cache has a 5-minute TTL; sleeping past 300s reads the full context uncached. 60s\u2013270s: cache stays warm\u2026 300s\u20133600s: pay the cache miss\u2026 Don't pick 300s\u2026 drop to 270s or commit to 1200s+.\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Remove this product-specific paragraph, or replace it with a generic note that any billed/cloud multi-agent review command is user-triggered only and cannot be self-launched, with the actual command name injected by the harness.",
+    "issue": "References specific product/feature names (`ultrareview`, `/code-review ultra`, `/ultrareview`) tied to a particular Claude-Code-product billing feature (\"user-triggered and billed\"). This is product-specific residue rather than vendor-neutral agent guidance.",
+    "location": "Session-specific guidance (line 626): \"If the user asks about 'ultrareview' or how to run it: `/code-review ultra` launches a multi-agent cloud review of the current branch, and `/code-review ultra <PR#>` targets a GitHub PR. `/ultrareview` is a deprecated alias for the same command.\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Drop \"knowledge cutoff\" from the enumerated injected facts (keep cwd, git status, platform, shell, model, date); the agent does not need to reason about a cutoff as an authoritative fact.",
+    "issue": "Enshrines \"knowledge cutoff\" as a first-class injected environment fact. Not a specific date, but it bakes the concept of a fixed training-knowledge cutoff into the agent's model of itself, which is a model-specific assumption. Borderline \u2014 it describes injection generically rather than asserting a value.",
+    "location": "Tools section, Environment facts (line 646): \"cwd, git status, platform, shell, model name and ID, knowledge cutoff, date.\"",
+    "severity": "low"
+   },
+   {
+    "fix": "If the user wants the floor gone entirely, collapse the repeated confirm-first language to a single neutral statement and weaken it to 'follow the user's explicit instructions on destructive actions' rather than a mandatory confirmation gate; remove the redundant restatements at lines 31, 108, 156, 599-601, 620 so the rule is stated at most once. If kept, this finding can be disregarded.",
+    "issue": "This is a built-in safety floor \u2014 a mandatory confirmation gate the agent must not drop below for destructive/outward-facing actions, repeated in ~6 places. It is borderline-operational (a coding agent genuinely shouldn't delete unrequested files), but it matches the lens category of 'safety floors' the user wants gone, so flagging it for an explicit keep/strip decision rather than silently leaving it.",
+    "location": "Core operating principles / Hard rules and repeated throughout (lines 31, 46, 108, 156, 599-601, 620): the recurring \"confirm first before irreversible/outward-facing actions (delete, overwrite, publish, send, deploy, push, schema migration, mass rename) unless durably authorized\" gate.",
+    "severity": "low"
+   }
+  ],
+  "overall": "The prompt is largely clean of the targeted residue: there is no moralizing language, no refusal-handling / \\\"I cannot assist\\\" scaffolding, no copyright/IP paranoia, no wellbeing content, no dual-use/weapon/CBRN caution, no political-neutrality disclaimers, and no \\\"as an AI/LLM\\\" self-reference. The genuine residue is concentrated in model/brand-specific assumptions: the opening identity line (\\\"Claude Code, Anthropic's official CLI\\\"), the hardcoded `Co-Authored-By: Claude <noreply@anthropic.com>` commit trailer, the product-specific `ultrareview`/`/code-review ultra` references, and the hard-coded 5-minute prompt-cache TTL with its numeric delay bands. Two lower-severity items \u2014 the enshrinement of \\\"knowledge cutoff\\\" as an injected fact and the recurring destructive-action confirmation safety floor \u2014 are borderline between operational guidance and residue, so I've flagged them for an explicit decision rather than asserting they must go. Recommend fixing the two HIGH items first; the MEDIUM cache-TTL and product-command items next; the LOW items only if the user confirms they want those floors/concepts removed."
+ },
+ {
+  "lens": "contradiction-duplication",
+  "findings": [
+   {
+    "fix": "Pick one model. If `EnterPlanMode` is a real agent-callable tool, delete the clause \"you do not call a tool to enter it\" at line 146 and reconcile with the tool entry. If plan mode is harness/user-selected only, remove the `EnterPlanMode` tool entry (lines 710-713) and keep only `ExitPlanMode`. Do not leave both statements live.",
+    "issue": "Direct contradiction: the Plan-mode section asserts the agent does NOT call a tool to enter plan mode (only ExitPlanMode is agent-callable), yet the Tools section catalogs an `EnterPlanMode` tool whose stated purpose is for the agent to transition into plan mode. A reader cannot tell whether plan mode is entered by the user/harness only, or by an agent tool call.",
+    "location": "Planning & task management > Plan mode (line 146: \"The user or harness selects plan mode; you do not call a tool to enter it. `ExitPlanMode` is the agent-callable gate...\") vs Tools > `EnterPlanMode` (lines 710-712: \"Transition into plan mode to explore the codebase... Entering plan mode requires the user's consent.\")",
+    "severity": "high"
+   },
+   {
+    "fix": "Correct line 735 to: \"Default is foreground (synchronous); pass `run_in_background: true` only for non-gating work whose result you don't need before the turn ends.\" Aligns with line 213 and the schema.",
+    "issue": "The `Agent` tool entry states the default is background (i.e., `run_in_background` defaults true). Every other treatment \u2014 line 213, the opt-in framing throughout, and the actual tool schema \u2014 treats background as opt-in (`run_in_background: true`), with foreground/synchronous as the default. This inverts the default and would cause an agent to fire-and-forget subagents it meant to wait on.",
+    "location": "Tools > `Agent` (line 735: \"Default is background; pass `run_in_background: false` for a synchronous run when you need the result to continue.\") vs Subagents > run_in_background (line 213: \"`run_in_background: true` runs the subagent asynchronously... Use fire-and-forget ONLY for non-gating work...\") and the Agent tool schema (run_in_background defaults false).",
+    "severity": "high"
+   },
+   {
+    "fix": "Pick one canonical family. Since the Tools section catalogs `Task*` (and the live harness ships `TaskCreate`/`TaskList`/...), rewrite the Planning section to use the `Task*` family as primary and drop the line-174 fallback framing (or vice versa: add a `TodoWrite` tool entry and demote `Task*`). Do not leave the body referencing a tool the Tools section does not list.",
+    "issue": "The body repeatedly treats `TodoWrite` as the primary living-plan surface and frames the `Task*` family as a fallback that only applies in reduced child/agent-team sessions. But this prompt's own Tools reference section lists only the `Task*` tools and has no `TodoWrite` entry. The document is internally inconsistent about which tool family is primary, and a reader following the Tools section would not find the tool the body keeps invoking.",
+    "location": "Planning & task management > `TodoWrite` discipline (lines 64, 158-172, 178, 185) and line 174 (\"In child / agent-team sessions where `TodoWrite` is absent, the `Task*` family... serves the same role\") vs the Tools section, which catalogs `TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate`/`TaskStop` (lines 749-777) and omits `TodoWrite` entirely.",
+    "severity": "high"
+   },
+   {
+    "fix": "Keep the authoritative statement in the Tools section (line 638 + 644, consolidated to one paragraph). Cut the duplicates at lines 12 and 77, replacing each with a one-line pointer: \"Tool availability is session-dependent and the live list is authoritative; see Tools.\"",
+    "issue": "The same tool-injection / session-profile / reduced-child-set paragraph is restated four times, near-verbatim, including the identical `Grep`/`Glob`\u2192`grep`/`find` and `TodoWrite`\u2192`Task*` substitution example.",
+    "location": "Harness (line 12), Working with tools (line 77), Tools intro (line 638), and Tools > Session profile > allowlist (line 644) \u2014 all state: \"The harness injects each session's real tools... confirm a tool against the live list... do not assume a tool is present. Tool availability is session-dependent: child and agent-team sessions ship a reduced, substituted set (`Grep`/`Glob` replaced by Bash `grep`/`find`; task-tracking via `Task*` family instead of `TodoWrite`). The session profile sits above the permission allowlist...\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Keep the Hard-rules statement (line 44) as the single normative home. Cut lines 8, 108, 525, 644 to brief pointers (\"see Hard rules\") or drop the redundant restatement where the surrounding context does not require it.",
+    "issue": "The denied-call / awaiting-approval rule is stated five times, near-verbatim, across four sections.",
+    "location": "Harness (line 8), Core operating principles > Hard rules (line 44), Working with tools > Permission modes (line 108), Verification > Verify against actual state (line 525), and Tools intro (line 644) \u2014 all state: \"A denied call means the user declined under the active mode \u2014 adapt, never retry verbatim. A command awaiting approval has not run \u2014 do not reason about its output until it executes.\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Keep the fullest statement (line 612). Replace lines 92 and 640 with one-line pointers: \"Deferred tools load via `ToolSearch` before calling; see Skills & extensions.\"",
+    "issue": "The deferred-tools / `ToolSearch` rule is stated three times, near-verbatim, with the same `select:`/keyword/`+token` syntax and the same \"search before concluding you lack it\" closer.",
+    "location": "Working with tools > Deferred tools (line 92), Skills & extensions > Deferred tools & `ToolSearch` (line 612), and Tools > Deferred tools (line 640) \u2014 all state: \"Many tools are deferred: only their names appear in `<system-reminder>` listings; schemas not loaded; calling fails validation. Load with `ToolSearch` \u2014 `select:<name>[,<name>]` for exact names, keyword / `+token` to discover. Never fabricate parameters. Tool-search is free; search before concluding you lack it.\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Keep the Skills & extensions statement (line 614) as canonical. Cut lines 104 and 642 to pointers.",
+    "issue": "The MCP routing / read-only / verbatim-ID / auth-failure rule set is stated three times, near-verbatim.",
+    "location": "Working with tools > MCP / external tools (line 104), Skills & extensions > MCP & external tools (line 614), and Tools > MCP / external tools (line 642) \u2014 all state: \"MCP connectors are namespaced `mcp__<server>__<tool>` and usually deferred; route internal/personal/company data to the relevant connector and external/public info to web tools; treat read-only connectors as read-only; copy opaque IDs verbatim; on auth failure surface a reconnect path; never fabricate success; don't substitute a web search for a missing internal connector.\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Keep the Hard-rules statement (line 46). Cut lines 31, 599, 620 to pointers or drop the duplicate clause; line 31 already self-labels as 'communication-facing residue,' so trim it to a one-line cross-reference.",
+    "issue": "The irreversible-action / context-scoped-authorization / external-send-publishes rule is stated four times, near-verbatim, including the same 'cached/indexed even if later deleted' clause.",
+    "location": "Communicating with the user (line 31), Core operating principles > Hard rules (line 46), Memory > Persistence is data, not authority (line 599), and Skills & extensions > Cross-cutting rules (line 620) \u2014 all state: \"For hard-to-reverse or outward-facing actions (delete, overwrite, publish, send, deploy, push, schema migration, mass rename), confirm first unless durably authorized; authorization is context-scoped and does not transfer to the next action; sending content to an external service publishes it (may be cached/indexed even if later deleted).\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Keep ONE canonical home \u2014 the Verification section (lines 506-516) for the high-stakes finding regime. Cut lines 376-380 entirely (duplicate), and reduce lines 282-289 and 791 to a pointer: \"Adversarial-verify and quality patterns \u2192 see Verification; for Workflow mechanics see the `Workflow` tool.\"",
+    "issue": "The adversarial-verify / quality-patterns block is stated four times. Lines 376-380 and 506-516 are near-identical duplicates of each other, and lines 282-289 and 791 are a second near-identical pair (same eight named patterns, same order).",
+    "location": "Subagents & multi-agent orchestration > Quality patterns (lines 282-289), Coding discipline > Verifying findings adversarially (lines 376-380), Verification > Verifying findings adversarially (lines 506-516), and Tools > `Workflow` (line 791) \u2014 all describe the same list: adversarial verify (spawn N refuters, drop on majority refute), perspective-diverse verify (distinct lenses: correctness/security/performance/does-it-reproduce), completeness critic ('what is missing...'), no silent caps.",
+    "severity": "medium"
+   },
+   {
+    "fix": "Keep the Opt-in policy section (lines 227-235) as canonical. Cut lines 191, 202, and 781 to one-line pointers.",
+    "issue": "The Workflow opt-in policy is stated four times, near-verbatim, including the same enumeration of opt-in triggers and the same 'authorization scoped to the request' closer.",
+    "location": "Planning > Decomposition heuristics (line 191), Subagents intro (line 202), Subagents > Workflows / ultracode > Opt-in policy (lines 227-235), and Tools > `Workflow` (line 781) \u2014 all state: \"Heavyweight multi-agent fan-out / Workflows require explicit user opt-in (`ultracode` keyword, standing session, user asking in their own words, a skill, or a named workflow); otherwise use a single `Agent` or describe the cost and ask first; authorization is scoped to the request and does not carry to the next task.\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Keep the Subagents > Workflows treatment (lines 245-297) as the rule layer. In the `Workflow` tool entry (lines 786-793) keep only the mechanic that is tool-specific (pass script inline via `script` / iterate via `{scriptPath}`), and replace the duplicated determinism/caps/pipeline rules with a pointer to the Subagents section.",
+    "issue": "The Workflow mechanics \u2014 pure-literal meta block, no `Date.now`/`Math.random`/argless `new Date()`, `pipeline()`-by-default vs `parallel()`-barrier rule (with the same code smell example), concurrency caps `min(16, cpuCores-2)` / 1000 agents / 4096 items, and resume via `{scriptPath, resumeFromRunId}` prefix-cache replay \u2014 are stated twice, near-verbatim, once as prose rules and once in the `Workflow` tool entry.",
+    "location": "Subagents > Workflows (Script shape, lines 245-249; Primitives, lines 252-260; Pipeline-by-default, lines 263-272; Concurrency and caps, lines 276-278; Resume, line 297) vs Tools > `Workflow` How to use (lines 786-793).",
+    "severity": "medium"
+   },
+   {
+    "fix": "Keep line 112. Cut lines 6 and 617 to pointers or drop the duplicate.",
+    "issue": "The 'describe actions not tool names' rule with the identical example sentence is stated three times.",
+    "location": "Harness (line 6), Working with tools > Parameters, intent, and tool naming (line 112), and Skills & extensions > Cross-cutting rules (line 617) \u2014 all state: \"Describe the action, not the tool: 'I'll search the codebase,' not 'I'll use Grep.'\"",
+    "severity": "low"
+   },
+   {
+    "fix": "Keep line 619 (cross-cutting). Cut lines 120 and 397 to pointers.",
+    "issue": "The 'never thank the user for tool/search results' rule is stated three times, near-verbatim.",
+    "location": "Context continuity at the tool layer (line 120), Research > Synthesize (line 397), and Skills & extensions > Cross-cutting rules (line 619) \u2014 all state: \"Never thank the user for tool/search results \u2014 they didn't produce them / the harness provided them.\"",
+    "severity": "low"
+   },
+   {
+    "fix": "Keep the Verification statement (line 486). Cut lines 68, 116, and 351 to brief pointers.",
+    "issue": "The lint/type self-correction cap (~3 attempts, never guess, then ask) is stated four times, near-verbatim.",
+    "location": "Agentic loop > Verify (line 68), Working with tools > Failure handling (line 116), Coding discipline > Verify before you claim done (line 351), and Verification > Stop and ask (line 486) \u2014 all state: \"Cap self-correction at ~3 attempts per file; fix lint/type errors only when the fix is clear (never guess); on the third failed attempt, stop and ask.\"",
+    "severity": "low"
+   }
+  ],
+  "overall": "The prompt is not clean on this lens. It has three high-severity internal contradictions: (1) the Plan-mode section says the agent does not call a tool to enter plan mode while the Tools section lists an `EnterPlanMode` tool; (2) the `Agent` tool entry states run_in_background defaults to background, contradicting the opt-in framing everywhere else and the real schema default of false; (3) the body treats `TodoWrite` as the primary task-tracking tool while the prompt's own Tools section catalogs only the `Task*` family and omits `TodoWrite` entirely, leaving the reader unable to find the tool the body keeps invoking. Beyond those, the prompt is heavily duplicated: at least nine rule blocks (tool-injection/session-profile, denied-call/awaiting-approval, deferred-tools/ToolSearch, MCP routing, irreversible-action/authorization-scoping, adversarial-verify/quality-patterns, Workflow opt-in, Workflow mechanics, and several smaller rules like 'describe actions not tool names,' 'never thank for tool results,' and the '3-attempt self-correction cap') are stated three to five times each in near-verbatim form across the Harness, Working-with-tools, Skills-&-extensions, Verification, Coding-discipline, Subagents, and Tools sections. The recommended fix is to give each rule a single canonical home (usually the Hard rules, the relevant top-of-section, or the Tools entry) and replace the other occurrences with one-line cross-references."
+ },
+ {
+  "lens": "claude-code-fit",
+  "findings": [
+   {
+    "fix": "Drop 'single-file artifact that renders in the preview pane' and replace with 'write real files into the project; prefer plain HTML/CSS/JS only when the project has no build step.' Remove the 'runtime sandbox / React sandbox / localStorage' sentence entirely, or relegate it to a clearly-labeled caveat: 'If you are running inside a hosted preview environment (not local Claude Code), respect its sandbox limits.' Reframe the paragraph around real project files, manifest-pinned deps, and the project's own dev server.",
+    "issue": "This passage carries claude.ai artifact/canvas/sandbox assumptions that do not map to Claude Code. Claude Code is a local CLI that writes real files into the user's real repo and runs them on the user's own machine; there is no hosted 'preview pane,' no 'React sandbox,' and no runtime sandbox forbidding localStorage/sessionStorage for deliverables. 'single-file artifact that renders in the preview pane' is artifact-mode thinking \u2014 in Claude Code the deliverable is a real multi-file project the user runs themselves. The localStorage/HTML-form restrictions are properties of the claude.ai artifact iframe, not of code Claude Code produces.",
+    "location": "Design & frontend \u2014 Stack & framework conventions: \"Keep deliverables runnable and self-contained: plain HTML/CSS/JS when no build step is needed, or a single-file artifact that renders in the preview pane ... Respect the runtime sandbox's hard limits \u2014 no `localStorage`/`sessionStorage` in some sandboxes (keep state in memory), HTML-form restrictions in some React sandboxes (use event handlers)\"",
+    "severity": "high"
+   },
+   {
+    "fix": "Scope the rule: 'When the preview is served remotely (hosted preview / remote sandbox), bind to `0.0.0.0` and share the public URL, not localhost. In local Claude Code, `localhost` is correct and expected \u2014 share it normally.' Don't blanket-forbid localhost URLs.",
+    "issue": "This is the claude.ai hosted-preview assumption. In Claude Code (local CLI on the user's machine), the user opens their own browser on their own host, so `localhost:3000` is exactly the right URL to share and use \u2014 binding to 0.0.0.0 and forbidding localhost is wrong guidance for the local case. 'the preview is unreachable otherwise' only holds for a remote-hosted preview iframe, which Claude Code is not.",
+    "location": "Design & frontend \u2014 Visual verification of UI: \"Bind dev servers to `0.0.0.0` (Vite `--host 0.0.0.0`, Next `-H 0.0.0.0`), never to `localhost` or a specific IP \u2014 the preview is unreachable otherwise; never share `localhost` URLs with the user.\"",
+    "severity": "high"
+   },
+   {
+    "fix": "Rename the subsection to 'Design exploration' (drop 'design-artifact mode'). Reframe the variations guidance around real project structure: separate files/branches/components for variants, or a single component with prop-driven variants \u2014 not an in-artifact toggle panel. Keep the 3+ variations and basic\u2192bold ordering advice; drop the 'design canvas' / 'one main file' single-artifact framing.",
+    "issue": "'design-artifact mode' and 'design canvas' are claude.ai artifact concepts. The 'one main file with toggleable tweaks over forking' and 'one hi-fi clickable prototype' model assumes a single-file artifact surface. Claude Code works in real multi-file project trees; the natural expression of variations is real files/branches/components, not a single in-artifact toggle panel.",
+    "location": "Design & frontend \u2014 Variations & exploration (design-artifact mode): \"For open-ended design exploration, offer 3+ variations ... Prefer one main file with toggleable tweaks over forking ... purely visual choices \u2192 side-by-side on a design canvas; interactions/flows/many-option situations \u2192 one hi-fi clickable prototype ...\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Drop 'Stream responses for interactive surfaces and' or scope it to 'When producing a rendered artifact in a host that streams it.' Keep the 'patch only changed parts of long-lived components' clause only where it genuinely applies to code you write into the project, not to Claude Code's own output streaming.",
+    "issue": "'Stream responses for interactive surfaces' is the artifact-streaming chatbot concept (claude.ai streams artifact renders incrementally). Claude Code's output channel is text/markdown to a terminal; it does not stream an interactive surface. The sentence reads as chatbot-artifact polish advice that has no Claude Code referent.",
+    "location": "Design & frontend \u2014 Organizational affordances & polish: \"Stream responses for interactive surfaces and patch only the parts of long-lived components that changed rather than re-rendering wholesale.\"",
+    "severity": "medium"
+   },
+   {
+    "fix": "Replace with a project-local placeholder (e.g. a committed `public/placeholder.svg` or an inline SVG) and ask the user for real assets, rather than implying a host-provided placeholder service exists.",
+    "issue": "The `/placeholder.svg?width=...` placeholder service URL is a claude.ai-artifact convention (a host-provided placeholder endpoint). In a real Claude Code project there is no such host-provided route; referencing it as a default could lead to a broken path in real code.",
+    "location": "Design & frontend \u2014 Imagery, placeholders & real data: \"draw a clear, correctly-sized placeholder (e.g. `/placeholder.svg?width={w}&height={h}`)\"",
+    "severity": "low"
+   }
+  ],
+  "overall": "The prompt is overwhelmingly Claude-Code-identified and harness-specific: it names real tools throughout (Read/Edit/Write/Grep/Glob/Bash/NotebookEdit/LSP/Agent/SendMessage/Task*/Workflow/EnterWorktree/ExitWorktree/Cron*/Monitor/ScheduleWakeup/PushNotification/Skill/DesignSync/EnterPlanMode/ExitPlanMode/AskUserQuestion/ReportFindings/WebSearch/WebFetch/ToolSearch), correctly references permission modes, hooks, <system-reminder> injection, deferred tools, MCP namespacing, session profiles, and the bash sandbox. No model-neutral phrasing leaks (the opening line and Harness section are properly Claude-Code-scoped), and there is no vague 'use your tools' chatbot-generic prose. The one real cluster of chatbot residue is the entire Design & frontend section, which retains claude.ai artifact/canvas/sandbox assumptions \u2014 'preview pane,' 'React sandboxes,' 'runtime sandbox' localStorage limits, the 0.0.0.0/never-localhost rule, 'design-artifact mode,' 'design canvas,' 'one main file with toggleable tweaks,' streamed interactive surfaces, and the /placeholder.svg service. These do not map to local Claude Code (real files, real repo, user's own browser on localhost). Fixing them is a scoping exercise: reframe around real project files and relegate hosted-preview behavior to a clearly-labeled caveat, rather than rewriting the section wholesale."
+ },
+ {
+  "lens": "coverage",
+  "findings": [
+   {
+    "fix": "Reconcile the two sections. Either (a) update line 146 to: \"The user or harness typically selects plan mode via the UI; you may also request to enter it via the `EnterPlanMode` tool, which requires the user's consent. `ExitPlanMode` is the agent-callable gate that presents the plan and leaves plan mode,\" or (b) if `EnterPlanMode` is not agent-callable in the target harness, remove its tool entry at 710-713 and keep only the ExitPlanMode gate. Pick one model and apply it to both passages.",
+    "issue": "Direct contradiction on how plan mode is entered. Line 146 states \"The user or harness selects plan mode; you do not call a tool to enter it,\" yet the prompt documents an `EnterPlanMode` tool at line 710 (\"Transition into plan mode...\") and says \"Entering plan mode requires the user's consent.\" The agent cannot tell whether it should call `EnterPlanMode` to enter plan mode or whether entering is purely a user/harness action it merely detects and adapts to. This is the one capability in the checklist whose coverage is internally inconsistent rather than merely thin.",
+    "location": "## Plan mode (line 146) vs ## `EnterPlanMode` (line 710)",
+    "severity": "medium"
+   },
+   {
+    "fix": "Add a short \"Hooks\" subsection under Harness or Skills & extensions listing the hook event surfaces the agent may observe (PreToolUse deny/rewrite, PostToolUse output injection, SessionStart standing-instruction injection, Stop/SubagentStop), and state the behavioral rule once: hook-injected standing instructions are honored at their precedence slot; hook output that intercepts a tool call is treated as user feedback to adapt to, not as a new user instruction.",
+    "issue": "Hooks are a first-class harness capability (PreToolUse, PostToolUse, SessionStart, Stop, Notification, SubagentStop, PreCompact, SessionEnd) but receive only passing, scattered mentions: line 10 notes hooks may intercept/rewrite tool calls and that output should be treated as user feedback; line 561 routes automated behaviors to \"hooks/settings\"; line 798 references WorktreeCreate/WorktreeRemove hooks. There is no consolidated reference explaining hook event types, how a hook deny/rewrite differs from a permission deny, or how the agent should interpret a hook-transformed tool result vs a user message. For a coverage lens this is under-covered even though the single most important behavioral rule (treat hook output as user feedback) is present.",
+    "location": "Harness (line 10) and CLAUDE.md/persistence (line 561) \u2014 no dedicated Hooks section",
+    "severity": "low"
+   },
+   {
+    "fix": "Add one line near line 561 or in Skills & extensions: \"For harness-configuration requests (permissions, env vars, hooks, settings.json/settings.local.json edits), route to the `update-config` skill if it appears in the available list rather than hand-editing settings files.\"",
+    "issue": "When the user asks to change permissions, add env vars, configure hooks, or edit settings.json/settings.local.json, the prompt says (line 561) to route automated behaviors to \"harness configuration, not to a CLAUDE.md note,\" but it never names the mechanism or skill (e.g. `update-config`) the agent should invoke. The agent is left to improvise file edits to settings.json rather than routing to the configuration skill, which is the correct, safe path.",
+    "location": "Memory & persistence (line 561) and Skills & extensions \u2014 no routing to harness-configuration skill",
+    "severity": "low"
+   }
+  ],
+  "overall": "Coverage on this lens is strong: every capability in the checklist has a dedicated treatment. All required tools are documented in the Tools section with when-to-use / how-to-use entries \u2014 Agent, AskUserQuestion, Bash, CronCreate/CronDelete/CronList, DesignSync, Edit, EnterPlanMode, EnterWorktree, ExitPlanMode, ExitWorktree, LSP, Monitor (incl. ws source), NotebookEdit, PushNotification, Read, ReportFindings, ScheduleWakeup, SendMessage, Skill, TaskCreate/TaskGet/TaskList/TaskOutput/TaskStop/TaskUpdate (TaskOutput correctly marked deprecated), WebFetch, WebSearch, Workflow, Write \u2014 and Grep/Glob/TodoWrite are covered as bonus entries. Deferred tools/ToolSearch, MCP/OAuth, permission modes (default/acceptEdits/plan/bypassPermissions/dontAsk), CLAUDE.md scope/precedence, file-based memory (MEMORY.md, frontmatter, wikilinks), skills (blocking-requirement, rigid/flexible), worktrees, plan mode, and ultracode/Workflow opt-in are all covered. The three findings are quality defects in coverage, not missing capabilities: a genuine contradiction between the Plan-mode section and the EnterPlanMode tool entry (medium), and two low-severity under-coverages \u2014 hooks as a concept and routing to the update-config skill for harness configuration. No capability in the lens is entirely absent."
+ },
+ {
+  "lens": "harness-correctness",
+  "findings": [
+   {
+    "fix": "Make the `Task*` family (`TaskCreate`/`TaskUpdate`/`TaskList`/`TaskGet`/`TaskStop`) the primary task-tracking mechanism throughout, since that is what the current harness loads. Replace the `TodoWrite` discipline section with `Task*` discipline (create pending, one in_progress via TaskUpdate, completed when done, dependencies via addBlocks/addBlockedBy), and mention `TodoWrite` only as a legacy alias if a separate source confirms it is still loaded. At minimum, stop asserting `TodoWrite` is the main-session tool and `Task*` the child-session fallback.",
+    "issue": "The prompt presents `TodoWrite` as the primary task-tracking tool in main sessions and relegates the `Task*` family to child/agent-team sessions only. But the authoritative live capture (CURRENT_HARNESS_TOOLS.md) is a full main-session inventory (it includes Agent, Workflow, EnterPlanMode, EnterWorktree, Cron*, Monitor, DesignSync, etc.) that lists `TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate`/`TaskStop`/`TaskOutput` and has NO `TodoWrite` entry at all. A model following this prompt in the current harness would call `TodoWrite` \u2014 a tool not in the injected schema \u2014 and get a validation error. The prompt's assumption that `TodoWrite` is present in main sessions and `Task*` only in child sessions is the inverse of what the live capture shows.",
+    "location": "Planning & task management > `TodoWrite` discipline: \"`TodoWrite` is the living plan surface for known multi-step work. Use it **often** for qualifying work...\" (line 158) and \"In child / agent-team sessions where `TodoWrite` is absent, the `Task*` family (`TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate`/`TaskStop`) serves the same role\" (line 174)",
+    "severity": "medium"
+   },
+   {
+    "fix": "Replace \"you do not call a tool to enter it\" with: \"Enter plan mode by calling `EnterPlanMode`, or the user/harness may select it directly.\" In the `EnterPlanMode` tool section, drop or soften \"Entering plan mode requires the user's consent\" \u2014 the agent calls it proactively; user approval happens at `ExitPlanMode`.",
+    "issue": "Line 146 explicitly states the agent does not call a tool to enter plan mode. But the harness exposes `EnterPlanMode` precisely so the agent can transition into plan mode proactively \u2014 CURRENT_HARNESS_TOOLS.md says: \"Use proactively before non-trivial implementation. Transitions into plan mode to explore the codebase and design an approach for user approval.\" The prompt's own Tools section documents `EnterPlanMode` as an agent-callable tool that takes no parameters and enters plan mode. This is a direct internal contradiction that misrepresents the harness mechanic. Related: line 712 says \"Entering plan mode requires the user's consent,\" but the harness directs the agent to call `EnterPlanMode` proactively; the consent gate is at `ExitPlanMode` (plan approval), not a precondition for entry.",
+    "location": "Planning & task management > Plan mode: \"The user or harness selects plan mode; you do not call a tool to enter it. `ExitPlanMode` is the agent-callable gate...\" (line 146), contradicted by the Tools > `EnterPlanMode` section (lines 710-713) and the harness reference.",
+    "severity": "medium"
+   },
+   {
+    "fix": "Drop the deprecated-alias sentence unless verified against the harness/skill source; refer only to `/code-review ultra` and `/code-review ultra <PR#>`.",
+    "issue": "Asserts `/ultrareview` is a deprecated alias for `/code-review ultra`. This is not corroborated by CURRENT_HARNESS_TOOLS.md or the code-review skill description (which only documents the `ultra` effort level). If the alias does not exist or is not actually deprecated, the claim misleads both model and user.",
+    "location": "Session-specific guidance: \"`/ultrareview` is a deprecated alias for the same command.\" (line 626)",
+    "severity": "low"
+   },
+   {
+    "fix": "Verify the CronCreate autonomous-loop sentinel against the harness source and cite it, or remove the claim and keep only the ScheduleWakeup `<<autonomous-loop-dynamic>>` sentinel, which is confirmed.",
+    "issue": "The ScheduleWakeup `<<autonomous-loop-dynamic>>` sentinel is confirmed in CURRENT_HARNESS_TOOLS.md, but no `<<autonomous-loop>>` sentinel for CronCreate is documented there. Asserting a specific sentinel string that may not be recognized by the harness risks the model emitting a bogus marker that the runtime does not honor.",
+    "location": "Tools > CronCreate: \"For a CronCreate-based autonomous loop, the sentinel is `<<autonomous-loop>>` (distinct from ScheduleWakeup's `-dynamic` variant).\" (line 817)",
+    "severity": "low"
+   }
+  ],
+  "overall": "On the harness-correctness lens the prompt is mostly accurate: tool names, JSON-schema details, and harness mechanics line up with CURRENT_HARNESS_TOOLS.md \u2014 Workflow caps/determinism (min(16, cores-2), 1000 agents, 4096 items; no Date.now/Math.random/argless new Date()), pipeline-by-default vs parallel-barrier semantics, deferred-tool/ToolSearch loading (select:/keyword/+token), MCP namespacing and OAuth (authenticate then complete_authentication), EnterWorktree/ExitWorktree (baseRef fresh/head, tmux handling, scope limits), CronCreate jitter/7-day expiry/REPL-idle firing, Monitor coverage rules and ws source, ScheduleWakeup delaySeconds clamp [60,3600] and cache-window guidance, DesignSync list/read->finalize_plan->write/delete ordering and @dsCard, ReportFindings field set, LSP operations (workspaceSymbol needs query), Bash timeout max 600000 and blocked foreground sleep, TaskOutput deprecation and .output-symlink warning, and the permission-mode list (default/acceptEdits/plan/bypassPermissions/dontAsk, confirmed against HARNESS_GLOSSARY.md) are all correct. Two concrete defects stand out: (1) the prompt defaults to `TodoWrite` as the main-session task tracker while the authoritative live capture exposes the `Task*` family and no `TodoWrite`, which would cause tool-not-found validation errors; and (2) the Plan-mode section says \\\"you do not call a tool to enter it,\\\" directly contradicting the `EnterPlanMode` tool the prompt itself documents and the harness exposes. Two lower-confidence claims (a `/ultrareview` deprecated alias and a CronCreate `<<autonomous-loop>>` sentinel) are uncorroborated by the harness reference and should be verified or trimmed.\""
+ }
+]
